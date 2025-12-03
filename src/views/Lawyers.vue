@@ -1,0 +1,286 @@
+<template>
+  <div class="min-h-screen bg-gray-50">
+    <Navbar />
+    <div class="pt-16">
+      <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="flex flex-col md:flex-row gap-8">
+          <!-- Sidebar Filters -->
+          <div class="w-full md:w-64 flex-shrink-0 space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+              <h3 class="font-bold text-gray-800 mb-4">筛选条件</h3>
+              
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-600 mb-2">擅长领域</label>
+                <div class="space-y-2">
+                  <label 
+                    v-for="specialty in specialties" 
+                    :key="specialty"
+                    class="flex items-center"
+                  >
+                    <input 
+                      type="checkbox" 
+                      :value="specialty"
+                      v-model="filters.specialty"
+                      class="rounded text-brand-600 border-gray-300 mr-2"
+                    >
+                    {{ specialty }}
+                  </label>
+                </div>
+              </div>
+
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-600 mb-2">执业年限</label>
+                <select 
+                  v-model="filters.years" 
+                  class="w-full border-gray-200 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500"
+                >
+                  <option value="">不限</option>
+                  <option value="1-3">1-3年</option>
+                  <option value="3-5">3-5年</option>
+                  <option value="5-10">5-10年</option>
+                  <option value="10+">10年以上</option>
+                </select>
+              </div>
+
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-600 mb-2">服务价格</label>
+                <input 
+                  type="range" 
+                  min="100" 
+                  max="2000" 
+                  v-model.number="filters.maxPrice"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                >
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>¥100</span>
+                  <span>¥{{ filters.maxPrice || 2000 }}+</span>
+                </div>
+              </div>
+
+              <button 
+                @click="applyFilters"
+                class="w-full bg-brand-600 text-white py-2 rounded-lg hover:bg-brand-700 transition"
+              >
+                应用筛选
+              </button>
+            </div>
+          </div>
+
+          <!-- Lawyer List -->
+          <div class="flex-1">
+            <div class="mb-4 flex justify-between items-center">
+              <span class="text-gray-500">找到 {{ totalLabel }} 位相关律师</span>
+              <div class="flex space-x-2 text-sm">
+                <button 
+                  v-for="sort in sortOptions"
+                  :key="sort.value"
+                  @click="currentSort = sort.value; loadLawyers()"
+                  :class="[
+                    'px-3 py-1 rounded-full font-medium transition',
+                    currentSort === sort.value 
+                      ? 'bg-brand-50 text-brand-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  ]"
+                >
+                  {{ sort.label }}
+                </button>
+              </div>
+            </div>
+
+            <div v-if="loading" class="text-center py-12">
+              <i class="fa-solid fa-spinner fa-spin text-3xl text-gray-400"></i>
+              <p class="text-gray-500 mt-4">加载中...</p>
+            </div>
+
+            <div v-else-if="displayedLawyers.length === 0" class="text-center py-12">
+              <p class="text-gray-500">暂无符合条件的律师</p>
+            </div>
+
+            <div v-else class="space-y-4">
+              <LawyerCard 
+                v-for="lawyer in displayedLawyers" 
+                :key="lawyer.id"
+                :lawyer="lawyer"
+                @consult="handleConsult"
+              />
+            </div>
+            
+            <div v-if="displayedLawyers.length > 0" class="mt-8 text-center">
+              <button 
+                @click="loadMore"
+                :disabled="loading || !hasMore"
+                class="px-6 py-2 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                {{ hasMore ? '加载更多律师' : '没有更多了' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <Footer />
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import Navbar from '@/components/Navbar.vue'
+import Footer from '@/components/Footer.vue'
+import LawyerCard from '@/components/LawyerCard.vue'
+import { getLawyerList, getSpecialties } from '@/api/lawyer'
+
+const router = useRouter()
+
+const rawLawyers = ref([])
+const specialties = ref([])
+const loading = ref(false)
+const total = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(10)
+const hasMore = ref(true)
+const currentSort = ref('')
+
+const filters = ref({
+  specialty: [],
+  years: '',
+  maxPrice: 2000
+})
+
+const sortOptions = [
+  { label: '综合排序', value: '' },
+  { label: '评分最高', value: 'score_desc' },
+  { label: '评分最低', value: 'score_asc' }
+]
+
+const displayedLawyers = computed(() => {
+  let list = [...rawLawyers.value]
+
+  if (filters.value.specialty.length) {
+    list = list.filter((item) => {
+      const specs = Array.isArray(item.specialty) ? item.specialty : []
+      return filters.value.specialty.every((tag) => specs.includes(tag))
+    })
+  }
+
+  if (filters.value.years) {
+    list = list.filter((item) => {
+      const years = Number(item.years) || 0
+      switch (filters.value.years) {
+        case '1-3':
+          return years >= 1 && years <= 3
+        case '3-5':
+          return years >= 3 && years <= 5
+        case '5-10':
+          return years >= 5 && years <= 10
+        case '10+':
+          return years >= 10
+        default:
+          return true
+      }
+    })
+  }
+
+  if (filters.value.maxPrice) {
+    list = list.filter((item) => {
+      const price = Number(item.price) || 0
+      return price <= filters.value.maxPrice
+    })
+  }
+
+  if (currentSort.value === 'score_desc') {
+    list.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+  } else if (currentSort.value === 'score_asc') {
+    list.sort((a, b) => (Number(a.score) || 0) - (Number(b.score) || 0))
+  }
+
+  return list
+})
+
+const totalLabel = computed(() => (total.value || displayedLawyers.value.length))
+
+const normalizeLawyers = (records = []) =>
+  records.map((item) => ({
+    ...item,
+    specialty: (() => {
+      if (Array.isArray(item.specialty)) return item.specialty
+      if (typeof item.specialty === 'string') {
+        try {
+          const parsed = JSON.parse(item.specialty)
+          return Array.isArray(parsed) ? parsed : item.specialty.split(',').filter(Boolean)
+        } catch {
+          return item.specialty.split(',').filter(Boolean)
+        }
+      }
+      return []
+    })()
+  }))
+
+const loadLawyers = async () => {
+  loading.value = true
+  try {
+    const params = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
+    }
+    if (currentSort.value) {
+      params.sort = currentSort.value
+    }
+
+    const res = await getLawyerList(params)
+    const pageData = res?.data ?? res ?? {}
+    const records = normalizeLawyers(pageData.records || [])
+
+    if (currentPage.value === 1) {
+      rawLawyers.value = records
+    } else {
+      rawLawyers.value = rawLawyers.value.concat(records)
+    }
+    total.value = pageData.total ?? (pageData.records?.length ?? 0)
+    const totalPages = (pageData.pages ?? Math.ceil((total.value || 0) / pageSize.value)) || 1
+    hasMore.value = currentPage.value < totalPages
+  } catch (error) {
+    console.error('加载律师列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadMore = () => {
+  if (hasMore.value && !loading.value) {
+    currentPage.value++
+    loadLawyers()
+  }
+}
+
+const applyFilters = () => {
+  currentPage.value = 1
+  rawLawyers.value = []
+  loadLawyers()
+}
+
+const handleConsult = (lawyer) => {
+  router.push({ name: 'Profile', query: { lawyerId: lawyer.id } })
+}
+
+const loadSpecialties = async () => {
+  try {
+    const res = await getSpecialties()
+    const list = res?.data ?? res
+    if (Array.isArray(list)) {
+      specialties.value = list
+    } else {
+      specialties.value = []
+    }
+  } catch (error) {
+    console.error('加载专业领域失败:', error)
+    specialties.value = []
+  }
+}
+
+onMounted(() => {
+  loadSpecialties()
+  loadLawyers()
+})
+</script>
+

@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 隐藏滚动条但保留功能 */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+.chat-bubble {
+    position: relative;
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.chat-bubble.user {
+    background-color: #eff6ff;
+    color: #1e3a8a;
+    border-bottom-right-radius: 2px;
+    margin-left: auto;
+}
+
+.chat-bubble.ai {
+    background-color: #f3f4f6;
+    color: #374151;
+    border-bottom-left-radius: 2px;
+}
+
+.active-nav {
+    color: #1e40af;
+    font-weight: 600;
+    border-bottom: 2px solid #1e40af;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-blob {
+    animation: blob 12s infinite;
+}
+
+.animation-delay-2000 {
+    animation-delay: 2s;
+}
+
+@keyframes blob {
+    0% {
+        transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+        transform: translate(30px, -50px) scale(1.05);
+    }
+    66% {
+        transform: translate(-20px, 20px) scale(0.95);
+    }
+    100% {
+        transform: translate(0px, 0px) scale(1);
+    }
+}
+
+.checkbox-wrapper input:checked + div {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+.checkbox-wrapper input:checked + div svg {
+    display: block;
+}
+
