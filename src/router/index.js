@@ -6,6 +6,7 @@ import Knowledge from '../views/Knowledge.vue'
 import Auth from '../views/Auth.vue'
 import LawyerWorkbench from '../views/LawyerWorkbench.vue'
 import Admin from '../views/Admin.vue'
+import Chat from '../views/Chat.vue'
 import { useUserStore } from '@/stores/user'
 
 const routes = [
@@ -18,6 +19,11 @@ const routes = [
     path: '/lawyers',
     name: 'Lawyers',
     component: Lawyers
+  },
+  {
+    path: '/chat',
+    name: 'Chat',
+    component: Chat
   },
   {
     path: '/profile',

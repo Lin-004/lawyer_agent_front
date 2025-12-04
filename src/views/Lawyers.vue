@@ -124,13 +124,14 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import LawyerCard from '@/components/LawyerCard.vue'
 import { getLawyerList, getSpecialties } from '@/api/lawyer'
 
 const router = useRouter()
+const route = useRoute()
 
 const rawLawyers = ref([])
 const specialties = ref([])
@@ -260,7 +261,7 @@ const applyFilters = () => {
 }
 
 const handleConsult = (lawyer) => {
-  router.push({ name: 'Profile', query: { lawyerId: lawyer.id } })
+  router.push({ name: 'Chat', query: { lawyerId: lawyer.id } })
 }
 
 const loadSpecialties = async () => {
@@ -279,7 +280,20 @@ const loadSpecialties = async () => {
 }
 
 onMounted(() => {
+  // 如果路由带有 `specialty` 查询参数，先把它放到筛选条件中
+  const q = route.query.specialty
+  if (q) {
+    if (Array.isArray(q)) {
+      filters.value.specialty = q.map((s) => String(s))
+    } else if (typeof q === 'string') {
+      filters.value.specialty = q.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+  }
+
   loadSpecialties()
+  // 以当前 filters 加载律师（已将 specialty 应用）
+  currentPage.value = 1
+  rawLawyers.value = []
   loadLawyers()
 })
 </script>

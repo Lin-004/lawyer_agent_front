@@ -107,6 +107,7 @@
           <div 
             v-for="category in categories" 
             :key="category.id"
+            @click="goToCategory(category)"
             class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-1 transition cursor-pointer group"
           >
             <div 
@@ -150,39 +151,26 @@ const userAvatar = computed(() =>
 )
 
 const categories = [
-  {
-    id: 1,
-    title: '合同审查',
-    description: '租房、劳动、借款合同风险排查',
-    icon: 'fa-solid fa-file-contract',
-    bgColor: 'bg-blue-50 text-blue-600',
-    hoverColor: 'group-hover:bg-blue-600'
-  },
-  {
-    id: 2,
-    title: '婚姻家事',
-    description: '离婚协议、财产分割、子女抚养',
-    icon: 'fa-solid fa-rings-wedding',
-    bgColor: 'bg-red-50 text-red-600',
-    hoverColor: 'group-hover:bg-red-600'
-  },
-  {
-    id: 3,
-    title: '劳动工伤',
-    description: '工伤认定、辞退赔偿、欠薪追讨',
-    icon: 'fa-solid fa-helmet-safety',
-    bgColor: 'bg-amber-50 text-amber-600',
-    hoverColor: 'group-hover:bg-amber-600'
-  },
-  {
-    id: 4,
-    title: '刑事辩护',
-    description: '取保候审、罪轻辩护、法律会见',
-    icon: 'fa-solid fa-user-shield',
-    bgColor: 'bg-emerald-50 text-emerald-600',
-    hoverColor: 'group-hover:bg-emerald-600'
-  }
+  { id: 1, title: '刑事辩护', description: '刑事案件代理与辩护', icon: 'fa-solid fa-user-shield', bgColor: 'bg-emerald-50 text-emerald-600', hoverColor: 'group-hover:bg-emerald-600' },
+  { id: 2, title: '民事诉讼', description: '各类民事纠纷代理', icon: 'fa-solid fa-gavel', bgColor: 'bg-blue-50 text-blue-600', hoverColor: 'group-hover:bg-blue-600' },
+  { id: 3, title: '合同纠纷', description: '合同起草与纠纷解决', icon: 'fa-solid fa-file-contract', bgColor: 'bg-indigo-50 text-indigo-600', hoverColor: 'group-hover:bg-indigo-600' },
+  { id: 4, title: '婚姻家事', description: '离婚、抚养、财产分割', icon: 'fa-solid fa-rings-wedding', bgColor: 'bg-pink-50 text-pink-600', hoverColor: 'group-hover:bg-pink-600' },
+  { id: 5, title: '劳动纠纷', description: '劳动争议与工伤赔偿', icon: 'fa-solid fa-briefcase', bgColor: 'bg-amber-50 text-amber-600', hoverColor: 'group-hover:bg-amber-600' },
+  { id: 6, title: '公司法律', description: '公司合规、合同与治理', icon: 'fa-solid fa-building', bgColor: 'bg-slate-50 text-slate-600', hoverColor: 'group-hover:bg-slate-600' },
+  { id: 7, title: '交通事故', description: '交通事故责任与理赔', icon: 'fa-solid fa-car-crash', bgColor: 'bg-rose-50 text-rose-600', hoverColor: 'group-hover:bg-rose-600' },
+  { id: 8, title: '房产纠纷', description: '房屋买卖、租赁纠纷', icon: 'fa-solid fa-house', bgColor: 'bg-violet-50 text-violet-600', hoverColor: 'group-hover:bg-violet-600' },
+  { id: 9, title: '知识产权', description: '著作权、商标、专利事务', icon: 'fa-solid fa-lightbulb', bgColor: 'bg-yellow-50 text-yellow-600', hoverColor: 'group-hover:bg-yellow-600' },
+  { id: 10, title: '涉外案件', description: '涉外法律事务和争议', icon: 'fa-solid fa-globe', bgColor: 'bg-cyan-50 text-cyan-600', hoverColor: 'group-hover:bg-cyan-600' },
+  { id: 11, title: '行政诉讼', description: '行政复议与行政诉讼', icon: 'fa-solid fa-scale-unbalanced', bgColor: 'bg-emerald-50 text-emerald-600', hoverColor: 'group-hover:bg-emerald-600' },
+  { id: 12, title: '继承纠纷', description: '遗产继承与分割', icon: 'fa-solid fa-family', bgColor: 'bg-fuchsia-50 text-fuchsia-600', hoverColor: 'group-hover:bg-fuchsia-600' },
+  { id: 13, title: '股权纠纷', description: '股东权益与股权争议', icon: 'fa-solid fa-chart-line', bgColor: 'bg-lime-50 text-lime-600', hoverColor: 'group-hover:bg-lime-600' },
+  { id: 14, title: '工伤赔偿', description: '工伤认定与赔偿维权', icon: 'fa-solid fa-hospital-user', bgColor: 'bg-amber-50 text-amber-600', hoverColor: 'group-hover:bg-amber-600' },
+  { id: 15, title: '专利侵权', description: '专利维权与案件代理', icon: 'fa-solid fa-box-open', bgColor: 'bg-zinc-50 text-zinc-600', hoverColor: 'group-hover:bg-zinc-600' }
 ]
+
+const goToCategory = (category) => {
+  router.push({ name: 'Lawyers', query: { specialty: category.title } })
+}
 
 const formatMessage = (content) => {
   // 简单的消息格式化，支持换行
