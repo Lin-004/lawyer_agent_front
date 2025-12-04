@@ -1,5 +1,268 @@
 <template>
   <div class="bg-gray-100 min-h-screen flex">
+    <!-- 确认对话框 -->
+    <teleport to="body" v-if="confirmDialog.show">
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6 animate-in">
+          <h3 class="text-lg font-bold text-gray-900 mb-2">{{ confirmDialog.title }}</h3>
+          <p class="text-gray-600 text-sm mb-6">{{ confirmDialog.message }}</p>
+          <div class="flex gap-3 justify-end">
+            <button
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+              @click="confirmDialog.show = false"
+              :disabled="confirmDialog.loading"
+            >
+              {{ confirmDialog.cancelText }}
+            </button>
+            <button
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-60"
+              @click="confirmDialog.action && confirmDialog.action()"
+              :disabled="confirmDialog.loading"
+            >
+              {{ confirmDialog.loading ? '处理中...' : confirmDialog.confirmText }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- 知识库上传模态框 -->
+    <teleport to="body" v-if="uploadModal.show">
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-900">上传知识库文档</h3>
+            <button
+              class="text-gray-400 hover:text-gray-600"
+              @click="uploadModal.show = false"
+              :disabled="uploadModal.uploading"
+            >
+              <i class="fa-solid fa-times text-xl"></i>
+            </button>
+          </div>
+
+          <!-- Upload Area -->
+          <div
+            class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition"
+            @click="$refs.fileInput?.click()"
+            @drop.prevent="handleFileDrop"
+            @dragover.prevent="uploadModal.dragActive = true"
+            @dragleave.prevent="uploadModal.dragActive = false"
+            :class="uploadModal.dragActive ? 'border-blue-500 bg-blue-50' : ''"
+          >
+            <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
+            <p class="text-gray-600 font-medium">拖拽文件到此或点击选择</p>
+            <p class="text-xs text-gray-500 mt-1">支持 PDF、Word、TXT 等文档格式</p>
+            <input
+              ref="fileInput"
+              type="file"
+              multiple
+              class="hidden"
+              @change="handleFileSelect"
+              accept=".pdf,.doc,.docx,.txt,.md"
+            />
+          </div>
+
+          <!-- File List -->
+          <div v-if="uploadModal.files.length > 0" class="mt-4 space-y-2">
+            <p class="text-xs font-medium text-gray-600">待上传文件：</p>
+            <div
+              v-for="(file, index) in uploadModal.files"
+              :key="index"
+              class="flex items-center justify-between bg-gray-50 p-2 rounded text-xs"
+            >
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <i class="fa-solid fa-file text-gray-400 flex-shrink-0"></i>
+                <span class="text-gray-700 truncate">{{ file.name }}</span>
+                <span class="text-gray-500 flex-shrink-0">({{ (file.size / 1024).toFixed(0) }}KB)</span>
+              </div>
+              <button
+                class="text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                @click="uploadModal.files.splice(index, 1)"
+                :disabled="uploadModal.uploading"
+              >
+                <i class="fa-solid fa-trash-alt text-sm"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Progress -->
+          <div v-if="uploadModal.uploading" class="mt-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-medium text-gray-600">上传中...</p>
+              <p class="text-xs text-gray-500">{{ uploadModal.progress }}%</p>
+            </div>
+            <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+              <div
+                class="bg-blue-600 h-full transition-all"
+                :style="{ width: uploadModal.progress + '%' }"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="mt-6 flex gap-3 justify-end">
+            <button
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+              @click="uploadModal.show = false"
+              :disabled="uploadModal.uploading"
+            >
+              关闭
+            </button>
+            <button
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-60"
+              @click="handleUpload"
+              :disabled="uploadModal.files.length === 0 || uploadModal.uploading"
+            >
+              {{ uploadModal.uploading ? '上传中...' : '开始上传' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- 律师详情模态框 -->
+    <teleport to="body" v-if="licenseDetailModal.show">
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <!-- Header -->
+          <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-gray-900">律师资质认证详情</h3>
+            <button
+              class="text-gray-400 hover:text-gray-600"
+              @click="licenseDetailModal.show = false"
+            >
+              <i class="fa-solid fa-times text-xl"></i>
+            </button>
+          </div>
+
+          <!-- Content -->
+          <div class="p-6 space-y-6" v-if="licenseDetailModal.data">
+            <!-- 基本信息 -->
+            <section>
+              <h4 class="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">基本信息</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">律师姓名</p>
+                  <p class="text-sm font-medium text-gray-900">{{ licenseDetailModal.data.lawyerName || '未提供' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">联系电话</p>
+                  <p class="text-sm font-medium text-gray-900">{{ licenseDetailModal.data.phone || '未提供' }}</p>
+                </div>
+              </div>
+            </section>
+
+            <hr class="border-gray-100" />
+
+            <!-- 执业信息 -->
+            <section>
+              <h4 class="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">执业信息</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">所属律师事务所</p>
+                  <p class="text-sm font-medium text-gray-900">{{ licenseDetailModal.data.lawFirm || '未提供' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">律师执业证号</p>
+                  <p class="text-sm font-mono text-gray-900">{{ licenseDetailModal.data.licenseNo || '未提供' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">执业证类型</p>
+                  <p class="text-sm font-medium text-gray-900">{{ licenseDetailModal.data.licenseType || '未提供' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">发证日期</p>
+                  <p class="text-sm font-medium text-gray-900">{{ licenseDetailModal.data.issueDate || '未提供' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">到期日期</p>
+                  <p class="text-sm font-medium text-gray-900">{{ licenseDetailModal.data.expireDate || '未提供' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">常驻地区</p>
+                  <p class="text-sm font-medium text-gray-900">
+                    {{ licenseDetailModal.data.province }}{{ licenseDetailModal.data.city }}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <hr class="border-gray-100" />
+
+            <!-- 擅长领域 -->
+            <section>
+              <h4 class="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">擅长领域</h4>
+              <div class="flex flex-wrap gap-2">
+                <span v-if="(licenseDetailModal.data.specialties || []).length === 0" class="text-xs text-gray-400">未提供</span>
+                <span
+                  v-for="specialty in licenseDetailModal.data.specialties"
+                  :key="specialty"
+                  class="bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs font-medium"
+                >
+                  {{ specialty }}
+                </span>
+              </div>
+            </section>
+
+            <hr class="border-gray-100" />
+
+            <!-- 证件照片 -->
+            <section v-if="licenseDetailModal.data.ossUrl">
+              <h4 class="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">证件照片</h4>
+              <div class="flex items-start gap-4">
+                <a :href="licenseDetailModal.data.ossUrl" target="_blank" rel="noreferrer" class="text-sm text-blue-600 underline">打开/下载图片</a>
+                <img :src="licenseDetailModal.data.ossUrl" alt="执业证照片" class="w-40 h-auto rounded border" />
+              </div>
+            </section>
+
+            <hr class="border-gray-100" />
+
+            <!-- 提交时间和状态 -->
+            <section>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">申请时间</p>
+                  <p class="text-sm font-medium text-gray-900">{{ formatDate(licenseDetailModal.data.applicationTime) }}</p>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500 mb-1">审核状态</p>
+                  <span :class="['px-2 py-1 rounded text-xs font-medium', statusBadge(licenseDetailModal.data.status)]">
+                    {{ licenseDetailModal.data.status || '未知' }}
+                  </span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Footer -->
+          <div class="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3 justify-end">
+            <button
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+              @click="licenseDetailModal.show = false"
+            >
+              关闭
+            </button>
+            <button
+              v-if="licenseDetailModal.data?.status === '待审核'"
+              class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition"
+              @click="handleApprove(licenseDetailModal.data)"
+            >
+              通过审核
+            </button>
+            <button
+              v-if="licenseDetailModal.data?.status === '待审核'"
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition"
+              @click="handleReject(licenseDetailModal.data)"
+            >
+              驳回审核
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
     <!-- Sidebar -->
     <aside
       class="w-64 bg-slate-900 text-slate-200 flex-shrink-0 flex flex-col transition-transform duration-300 absolute md:relative min-h-screen"
@@ -33,14 +296,25 @@
       </nav>
 
       <div class="p-4 bg-slate-950">
-        <div class="flex items-center">
-          <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-            A
+        <button class="w-full" @click="showLogoutMenu = !showLogoutMenu">
+          <div class="flex items-center hover:bg-slate-800 p-2 rounded transition">
+            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+              A
+            </div>
+            <div class="ml-3 text-left flex-1">
+              <p class="text-sm font-bold text-white">Super Admin</p>
+              <span class="text-xs text-slate-500">平台管理后台</span>
+            </div>
+            <i class="fa-solid fa-chevron-down text-slate-400 text-xs" :class="showLogoutMenu ? 'rotate-180' : ''"></i>
           </div>
-          <div class="ml-3">
-            <p class="text-sm font-bold text-white">Super Admin</p>
-            <span class="text-xs text-slate-500">平台管理后台</span>
-          </div>
+        </button>
+        <div v-if="showLogoutMenu" class="mt-2 pt-2 border-t border-slate-700 space-y-1">
+          <button
+            class="w-full text-left px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded transition flex items-center"
+            @click="handleLogout"
+          >
+            <i class="fa-solid fa-sign-out-alt mr-2"></i> 退出登录
+          </button>
         </div>
       </div>
     </aside>
@@ -117,8 +391,8 @@
                     <p class="text-xs text-gray-500 mt-1">执业证号：{{ license.licenseNo || '未提供' }}</p>
                   </div>
                   <div class="text-right">
-                    <p class="text-xs text-gray-400">提交时间</p>
-                    <p class="text-sm text-gray-700">{{ formatDate(license.createTime) }}</p>
+                    <p class="text-xs text-gray-400">申请时间</p>
+                    <p class="text-sm text-gray-700">{{ formatDate(license.applicationTime) }}</p>
                   </div>
                 </div>
               </div>
@@ -203,15 +477,18 @@
               <table class="min-w-full text-left text-sm">
                 <thead class="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
                   <tr>
+                    <th class="px-4 py-3">I  D</th>
                     <th class="px-4 py-3">昵称</th>
                     <th class="px-4 py-3">账号</th>
                     <th class="px-4 py-3">角色</th>
                     <th class="px-4 py-3">状态</th>
                     <th class="px-4 py-3">更新时间</th>
+                    <th class="px-4 py-3 text-right">操作</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                   <tr v-for="user in userTable.rows" :key="user.userName" class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ user.id }}</td>
                     <td class="px-4 py-3">
                       <div class="font-semibold text-gray-900">{{ user.nickname || '未设置' }}</div>
                       <div class="text-xs text-gray-400">{{ user.phone || '--' }}</div>
@@ -224,6 +501,22 @@
                       </span>
                     </td>
                     <td class="px-4 py-3 text-gray-500">{{ formatDate(user.updateTime) }}</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button
+                        v-if="user.status === 1"
+                        class="text-red-600 bg-red-50 px-3 py-1 rounded hover:bg-red-100 transition text-xs font-medium"
+                        @click="handleDisableUser(user)"
+                      >
+                        禁用
+                      </button>
+                      <button
+                        v-else
+                        class="text-green-600 bg-green-50 px-3 py-1 rounded hover:bg-green-100 transition text-xs font-medium"
+                        @click="handleEnableUser(user)"
+                      >
+                        启用
+                      </button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -291,10 +584,10 @@
                 <tr v-for="license in lawyerReview.rows" :key="license.id" class="hover:bg-gray-50 transition">
                   <td class="px-4 py-3">
                     <div class="font-semibold text-gray-900">{{ license.lawyerName || '律师' }}</div>
-                    <div class="text-xs text-gray-500 mt-1">{{ license.lawyerId ? `ID: ${license.lawyerId}` : '未关联用户' }}</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ license.id ? `ID: ${license.id}` : '未关联用户' }}</div>
                   </td>
                   <td class="px-4 py-3 font-mono text-sm text-gray-600">{{ license.licenseNo || '--' }}</td>
-                  <td class="px-4 py-3 text-gray-500">{{ formatDate(license.createTime) }}</td>
+                  <td class="px-4 py-3 text-gray-500">{{ formatDate(license.applicationTime) }}</td>
                   <td class="px-4 py-3">
                     <span :class="['px-2 py-1 rounded text-xs font-medium', statusBadge(license.status)]">
                       {{ license.status || '未知' }}
@@ -302,15 +595,21 @@
                   </td>
                   <td class="px-4 py-3 text-right space-x-2">
                     <button
+                      class="text-blue-600 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition text-xs font-medium"
+                      @click="handleViewLicenseDetail(license)"
+                    >
+                      查看详情
+                    </button>
+                    <button
                       v-if="license.status === '待审核'"
-                      class="text-green-600 bg-green-50 px-3 py-1 rounded hover:bg-green-100 transition"
+                      class="text-green-600 bg-green-50 px-3 py-1 rounded hover:bg-green-100 transition text-xs font-medium"
                       @click="handleApprove(license)"
                     >
                       通过
                     </button>
                     <button
                       v-if="license.status === '待审核'"
-                      class="text-red-600 bg-red-50 px-3 py-1 rounded hover:bg-red-100 transition"
+                      class="text-red-600 bg-red-50 px-3 py-1 rounded hover:bg-red-100 transition text-xs font-medium"
                       @click="handleReject(license)"
                     >
                       驳回
@@ -356,13 +655,21 @@
                 :key="article.id || article.fileName"
                 class="p-6 hover:bg-gray-50 transition flex justify-between gap-4"
               >
-                <div>
+                <div class="flex-1">
                   <p class="font-bold text-gray-900">{{ article.title || article.fileName }}</p>
                   <p class="text-xs text-gray-500 mt-1">{{ article.summary || '暂无摘要' }}</p>
                 </div>
-                <div class="text-right text-xs text-gray-400">
-                  <p>{{ article.source || '知识库' }}</p>
-                  <p class="mt-1">{{ formatDate(article.uploadTime || article.createTime) }}</p>
+                <div class="text-right">
+                  <div class="text-xs text-gray-400 mb-3">
+                    <p>{{ article.source || '知识库' }}</p>
+                    <p class="mt-1">{{ formatDate(article.uploadTime || article.createTime) }}</p>
+                  </div>
+                  <button
+                    class="text-red-600 bg-red-50 px-3 py-1 rounded hover:bg-red-100 transition text-xs font-medium"
+                    @click="handleDeleteKnowledge(article)"
+                  >
+                    删除
+                  </button>
                 </div>
               </div>
             </div>
@@ -382,7 +689,7 @@
                 <span class="w-2 h-2 bg-amber-500 rounded-full mr-2"></span> 建议同步执行文本切分接口
               </li>
             </ul>
-            <button class="mt-6 w-full bg-blue-600 text-white py-2 rounded-lg text-sm shadow hover:bg-blue-700">
+            <button class="mt-6 w-full bg-blue-600 text-white py-2 rounded-lg text-sm shadow hover:bg-blue-700" @click="openUploadModal">
               前往上传
             </button>
           </div>
@@ -427,17 +734,25 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import {
   getAdminUserList,
   getLawyerLicenseList,
   approveLawyerLicense,
-  rejectLawyerLicense
+  rejectLawyerLicense,
+  adminLogout,
+  disableUser,
+  enableUser
 } from '@/api/admin'
-import { getKnowledgeList } from '@/api/knowledge'
+import { getKnowledgeList, uploadKnowledgeFile, deleteKnowledgeFile } from '@/api/knowledge'
 
+const router = useRouter()
 const sidebarOpen = ref(false)
+const showLogoutMenu = ref(false)
 const activeView = ref('dashboard')
 const globalSearch = ref('')
+const userStore = useUserStore()
 
 const navItems = [
   { id: 'dashboard', label: '仪表盘', icon: 'fa-solid fa-chart-pie' },
@@ -460,6 +775,29 @@ const dashboardData = reactive({
 
 const dashboardLoading = ref(false)
 
+const confirmDialog = reactive({
+  show: false,
+  title: '',
+  message: '',
+  confirmText: '确认',
+  cancelText: '取消',
+  action: null,
+  loading: false
+})
+
+const licenseDetailModal = reactive({
+  show: false,
+  data: null
+})
+
+const uploadModal = reactive({
+  show: false,
+  files: [],
+  uploading: false,
+  progress: 0,
+  dragActive: false
+})
+
 const userTable = reactive({
   rows: [],
   total: 0,
@@ -479,7 +817,8 @@ const lawyerReview = reactive({
   query: {
     page: 1,
     pageSize: 5,
-    status: '待审核'
+    // default use backend status value
+    status: 'pending'
   }
 })
 
@@ -500,10 +839,22 @@ const userRoleFilters = [
 ]
 
 const licenseStatusFilters = [
-  { label: '待审核', value: '待审核' },
-  { label: '审核通过', value: '审核通过' },
-  { label: '审核拒绝', value: '审核拒绝' }
+  { label: '待审核', value: 'pending' },
+  { label: '审核通过', value: 'approved' },
+  { label: '审核拒绝', value: 'rejected' }
 ]
+
+// 状态映射：后端使用英文状态，前端用中文显示/筛选
+const statusBackendMap = {
+  '待审核': 'pending',
+  '审核通过': 'approved',
+  '审核拒绝': 'rejected'
+}
+const statusDisplayMap = {
+  pending: '待审核',
+  approved: '审核通过',
+  rejected: '审核拒绝'
+}
 
 const currentTitle = computed(() => {
   const target = navItems.find((item) => item.id === activeView.value)
@@ -565,7 +916,8 @@ const loadDashboard = async () => {
     const [usersRes, lawyersRes, pendingLicensesRes, knowledgeRes] = await Promise.all([
       getAdminUserList({ pageNum: 1, pageSize: 1 }),
       getAdminUserList({ pageNum: 1, pageSize: 1, role: 'lawyer' }),
-      getLawyerLicenseList({ page: 1, pageSize: 3, status: '待审核' }),
+      // map front-end status filter to backend status value
+      getLawyerLicenseList({ page: 1, pageSize: 3, status: statusBackendMap['待审核'] }),
       getKnowledgeList()
     ])
 
@@ -578,7 +930,27 @@ const loadDashboard = async () => {
     stats.totalLawyers = lawyersInfo.total
     stats.pendingLicenses = licenseInfo.total
     stats.knowledgeArticles = knowledgeInfo.total
-    dashboardData.pendingLicenses = licenseInfo.records
+    // normalize dashboard pending licenses similarly to list mapping
+    dashboardData.pendingLicenses = (licenseInfo.records || []).map((r) => {
+      let specialties = []
+      try {
+        if (r.specialty) {
+          specialties = Array.isArray(r.specialty) ? r.specialty : JSON.parse(r.specialty)
+        } else if (r.specialties) {
+          specialties = Array.isArray(r.specialties) ? r.specialties : JSON.parse(r.specialties)
+        }
+      } catch (e) {
+        specialties = []
+      }
+      const statusRaw = r.auditStatus
+      const status = statusDisplayMap[statusRaw] || statusRaw
+      return {
+        ...r,
+        specialties,
+        statusRaw,
+        status
+      }
+    })
   } catch (error) {
     console.error('加载仪表盘数据失败', error)
   } finally {
@@ -608,13 +980,36 @@ const loadUserTable = async () => {
 const loadLawyerLicenses = async () => {
   lawyerReview.loading = true
   try {
+    // translate front-end status filter (中文) to backend auditStatus (英文)，若已为英文则直接使用
+    const statusParam = statusBackendMap[lawyerReview.query.status] || lawyerReview.query.status
     const res = await getLawyerLicenseList({
       page: lawyerReview.query.page,
       pageSize: lawyerReview.query.pageSize,
-      status: lawyerReview.query.status
+      auditStatus: statusParam
     })
     const info = normalizePageResponse(res)
-    lawyerReview.rows = info.records
+    // normalize records: parse specialty json, map status display
+    lawyerReview.rows = (info.records || []).map((r) => {
+      let specialties = []
+      try {
+        if (r.specialty) {
+          specialties = Array.isArray(r.specialty) ? r.specialty : JSON.parse(r.specialty)
+        } else if (r.specialties) {
+          specialties = Array.isArray(r.specialties) ? r.specialties : JSON.parse(r.specialties)
+        }
+      } catch (e) {
+        specialties = []
+      }
+      const statusRaw = r.auditStatus
+      const status = statusDisplayMap[statusRaw] || statusRaw
+      return {
+        ...r,
+        licenseId: r.licenseId, // ensure licenseId is present
+        specialties,
+        statusRaw,
+        status
+      }
+    })
     lawyerReview.total = info.total
   } catch (error) {
     console.error('加载律师执业证列表失败', error)
@@ -703,7 +1098,9 @@ const statusBadge = (status) => {
 
 const handleApprove = async (license) => {
   try {
-    await approveLawyerLicense(license.id)
+    // Use license.licenseId for approve endpoint
+    await approveLawyerLicense(license.licenseId)
+    licenseDetailModal.show = false
     loadLawyerLicenses()
     loadDashboard()
   } catch (error) {
@@ -715,12 +1112,19 @@ const handleReject = async (license) => {
   const remark = window.prompt('请输入驳回理由', '资料不完整')
   if (remark === null) return
   try {
-    await rejectLawyerLicense(license.id, remark || '资料不符合要求')
+    // Use license.licenseId for reject endpoint
+    await rejectLawyerLicense(license.licenseId, remark || '资料不符合要求')
+    licenseDetailModal.show = false
     loadLawyerLicenses()
     loadDashboard()
   } catch (error) {
     console.error('驳回审核失败', error)
   }
+}
+
+const handleViewLicenseDetail = (license) => {
+  licenseDetailModal.data = license
+  licenseDetailModal.show = true
 }
 
 const roleText = (role) => {
@@ -750,9 +1154,141 @@ const handleGlobalSearch = () => {
   searchUsers()
 }
 
+const handleDisableUser = async (user) => {
+  confirmDialog.title = '禁用用户'
+  confirmDialog.message = `确定要禁用用户 ${user.nickname || user.userName} 吗？禁用后该用户将无法登录。`
+  confirmDialog.confirmText = '禁用'
+  confirmDialog.action = async () => {
+    try {
+      confirmDialog.loading = true
+      await disableUser(user.id)
+      confirmDialog.show = false
+      loadUserTable()
+    } catch (error) {
+      console.error('禁用用户失败', error)
+    } finally {
+      confirmDialog.loading = false
+    }
+  }
+  confirmDialog.show = true
+}
+
+const handleEnableUser = async (user) => {
+  confirmDialog.title = '启用用户'
+  confirmDialog.message = `确定要启用用户 ${user.nickname || user.userName} 吗？启用后该用户可以正常登录。`
+  confirmDialog.confirmText = '启用'
+  confirmDialog.action = async () => {
+    try {
+      confirmDialog.loading = true
+      await enableUser(user.id)
+      confirmDialog.show = false
+      loadUserTable()
+    } catch (error) {
+      console.error('启用用户失败', error)
+    } finally {
+      confirmDialog.loading = false
+    }
+  }
+  confirmDialog.show = true
+}
+
 onMounted(() => {
   loadDashboard()
 })
+
+const handleLogout = async () => {
+  try {
+    await adminLogout()
+  } catch (error) {
+    console.warn('后端退出登录失败，执行本地清除', error)
+  } finally {
+    userStore.logout()
+    showLogoutMenu.value = false
+    router.push({ name: 'Auth' })
+  }
+}
+
+const openUploadModal = () => {
+  uploadModal.show = true
+  uploadModal.files = []
+  uploadModal.progress = 0
+  uploadModal.dragActive = false
+}
+
+const handleFileSelect = (event) => {
+  const files = Array.from(event.target.files || [])
+  uploadModal.files.push(...files)
+}
+
+const handleFileDrop = (event) => {
+  uploadModal.dragActive = false
+  const files = Array.from(event.dataTransfer?.files || [])
+  uploadModal.files.push(...files)
+}
+
+const handleUpload = async () => {
+  if (uploadModal.files.length === 0) return
+
+  uploadModal.uploading = true
+  uploadModal.progress = 0
+
+  try {
+    // 使用 FormData 上传文件
+    const formData = new FormData()
+    uploadModal.files.forEach((file) => {
+      formData.append('files', file)
+    })
+
+    // 显示上传进度
+    const progressInterval = setInterval(() => {
+      if (uploadModal.progress < 90) {
+        uploadModal.progress += Math.random() * 30
+      }
+    }, 500)
+
+    const response = await uploadKnowledgeFile(formData)
+
+    clearInterval(progressInterval)
+    uploadModal.progress = 100
+
+    // 上传成功
+    setTimeout(() => {
+      uploadModal.show = false
+      uploadModal.files = []
+      uploadModal.progress = 0
+      loadKnowledge() // 刷新知识库列表
+      // 可选：显示成功提示
+      console.log('文档上传成功', response)
+    }, 500)
+  } catch (error) {
+    console.error('文档上传失败', error)
+    uploadModal.uploading = false
+    uploadModal.progress = 0
+    // 可选：显示错误提示
+  }
+}
+
+const handleDeleteKnowledge = async (article) => {
+  confirmDialog.title = '删除文档'
+  confirmDialog.message = `确定要删除文档 "${article.title || article.fileName}" 吗？删除后无法恢复。`
+  confirmDialog.confirmText = '删除'
+  confirmDialog.cancelText = '取消'
+  confirmDialog.action = async () => {
+    try {
+      confirmDialog.loading = true
+      await deleteKnowledgeFile(article.id)
+      confirmDialog.show = false
+      loadKnowledge() // 刷新知识库列表
+      console.log('文档删除成功')
+    } catch (error) {
+      console.error('文档删除失败', error)
+    } finally {
+      confirmDialog.loading = false
+    }
+  }
+  confirmDialog.show = true
+}
+
 </script>
 
 <style scoped>

@@ -34,3 +34,26 @@ export function getLawyerSchedule(params) {
   })
 }
 
+// 上传律师执业证
+export function uploadLawyerLicense(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/lawyer/license/upload',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+// 提交律师资质认证
+export function submitLawyerLicense(data) {
+  return request({
+    url: '/lawyer/license/submit',
+    method: 'post',
+    data
+  })
+}
+

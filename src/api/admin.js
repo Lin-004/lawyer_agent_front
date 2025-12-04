@@ -44,3 +44,27 @@ export function rejectLawyerLicense(id, remark) {
   })
 }
 
+// 管理后台退出登录
+export function adminLogout() {
+  return request({
+    url: '/admin/logout',
+    method: 'post'
+  })
+}
+
+// 禁用用户
+export function disableUser(id) {
+  return request({
+    url: `/admin/${id}/disable`,
+    method: 'post'
+  })
+}
+
+// 启用用户
+export function enableUser(id) {
+  return request({
+    url: `/admin/${id}/enable`,
+    method: 'post'
+  })
+}
+

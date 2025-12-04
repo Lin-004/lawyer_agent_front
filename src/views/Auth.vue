@@ -349,6 +349,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { lawyerRegister } from '@/api/user'
+import { adminLogin } from '@/api/admin'
 
 const router = useRouter()
 const route = useRoute()
@@ -443,11 +444,36 @@ const handleLogin = async () => {
 
   loading.value = true
   try {
-    await userStore.loginUser({
-      userName: loginForm.account,
-      password: loginForm.password,
-      role: currentRole.value
-    })
+    if (currentRole.value === 'admin') {
+      // 管理员登录调用 admin 接口
+      const res = await adminLogin({
+        username: loginForm.account,
+        password: loginForm.password
+      })
+      if (!res.success) {
+        throw new Error(res.message || '登录失败')
+      }
+      // 存储管理员登录信息
+      const payload = res.data
+      const token =
+        (typeof payload === 'object' && (payload?.token || payload?.accessToken)) ||
+        (typeof payload === 'string' ? payload : null) ||
+        'mock-token'
+      userStore.token = token
+      localStorage.setItem('token', token)
+      if (payload?.user) {
+        userStore.setUserInfo(payload.user)
+      } else if (payload?.userInfo) {
+        userStore.setUserInfo(payload.userInfo)
+      }
+    } else {
+      // 普通用户和律师登录调用 user 接口
+      await userStore.loginUser({
+        userName: loginForm.account,
+        password: loginForm.password,
+        role: currentRole.value
+      })
+    }
     notify('登录成功，即将进入系统', 'success')
     setTimeout(() => {
       const rawRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined

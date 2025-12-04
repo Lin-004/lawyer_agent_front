@@ -53,13 +53,15 @@
           </li>
           <li class="pt-4 pb-2 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">账号管理</li>
           <li>
-            <div
-              class="sidebar-link flex items-center px-6 py-3 text-gray-600 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+            <button
+              class="w-full text-left sidebar-link flex items-center px-6 py-3 text-gray-600 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+              :class="{ 'bg-brand-50 text-brand-600 border-r-4 border-brand-600': activeView === 'certification' }"
+              @click="switchView('certification')"
             >
               <i class="fa-solid fa-id-card w-6"></i>
               <span class="font-medium">资质认证</span>
               <i class="fa-solid fa-circle-check text-green-500 ml-auto text-sm"></i>
-            </div>
+            </button>
           </li>
           <li>
             <div
@@ -416,6 +418,385 @@
             </table>
           </div>
         </section>
+
+        <!-- Certification View -->
+        <section v-show="activeView === 'certification'" class="max-w-5xl mx-auto fade-in pb-10">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-800">资质认证</h1>
+              <p class="text-gray-500 text-sm mt-1">完善执业信息，解锁平台接单权限</p>
+            </div>
+            <button class="text-sm text-brand-600 hover:bg-brand-50 px-3 py-2 rounded transition">
+              <i class="fa-regular fa-file-lines mr-1"></i> 查看认证规范
+            </button>
+          </div>
+
+          <!-- Status Banner -->
+          <div
+            v-if="certificationStatus.showWarning"
+            class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-8 flex items-start"
+          >
+            <i class="fa-solid fa-circle-exclamation text-yellow-600 mt-1 mr-3 text-lg"></i>
+            <div>
+              <h3 class="font-bold text-yellow-800">审核中：请等待平台审核</h3>
+              <p class="text-sm text-yellow-700 mt-1">您已提交资质认证，我们将在 3 个工作日内完成审核。</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <!-- Progress Steps -->
+            <div class="border-b border-gray-100 bg-gray-50/50 px-4 py-6">
+              <div class="flex items-center justify-center max-w-3xl mx-auto">
+                <!-- Step 1 -->
+                <div class="flex flex-col items-center relative z-10">
+                  <div
+                    class="w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-md transition-transform hover:scale-105"
+                    :class="
+                      certificationStatus.step >= 1
+                        ? 'bg-brand-600 text-white shadow-blue-200'
+                        : 'bg-gray-200 text-gray-600'
+                    "
+                  >
+                    <i v-if="certificationStatus.step > 1" class="fa-solid fa-check"></i>
+                    <span v-else>1</span>
+                  </div>
+                  <span
+                    class="text-xs font-bold mt-2"
+                    :class="
+                      certificationStatus.step >= 1 ? 'text-brand-700' : 'text-gray-500'
+                    "
+                  >
+                    实名认证
+                  </span>
+                </div>
+
+                <!-- Connector 1 -->
+                <div
+                  class="flex-1 h-1 mx-2 -mt-6 rounded"
+                  :class="
+                    certificationStatus.step > 1 ? 'bg-brand-200' : 'bg-gray-200'
+                  "
+                ></div>
+
+                <!-- Step 2 -->
+                <div class="flex flex-col items-center relative z-10">
+                  <div
+                    class="w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-md"
+                    :class="
+                      certificationStatus.step === 2
+                        ? 'bg-brand-600 text-white shadow-blue-200 ring-4 ring-blue-50'
+                        : certificationStatus.step > 2
+                          ? 'bg-brand-600 text-white shadow-blue-200'
+                          : 'bg-gray-200 text-gray-600'
+                    "
+                  >
+                    <i v-if="certificationStatus.step > 2" class="fa-solid fa-check"></i>
+                    <span v-else>2</span>
+                  </div>
+                  <span
+                    class="text-xs font-bold mt-2"
+                    :class="
+                      certificationStatus.step >= 2 ? 'text-brand-700' : 'text-gray-500'
+                    "
+                  >
+                    执业信息
+                  </span>
+                </div>
+
+                <!-- Connector 2 -->
+                <div
+                  class="flex-1 h-1 mx-2 -mt-6 rounded"
+                  :class="
+                    certificationStatus.step > 2 ? 'bg-brand-200' : 'bg-gray-200'
+                  "
+                ></div>
+
+                <!-- Step 3 -->
+                <div class="flex flex-col items-center relative z-10">
+                  <div
+                    class="w-10 h-10 rounded-full flex items-center justify-center font-bold"
+                    :class="
+                      certificationStatus.step >= 3
+                        ? 'bg-brand-600 text-white shadow-md shadow-blue-200'
+                        : 'bg-white border-2 border-gray-300 text-gray-400'
+                    "
+                  >
+                    <i v-if="certificationStatus.step > 3" class="fa-solid fa-check"></i>
+                    <span v-else>3</span>
+                  </div>
+                  <span
+                    class="text-xs font-bold mt-2"
+                    :class="
+                      certificationStatus.step >= 3
+                        ? 'text-brand-700'
+                        : 'text-gray-500'
+                    "
+                  >
+                    等待审核
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Form Content -->
+            <form class="p-6 md:p-10 space-y-10">
+              <!-- Section 1: Basic Info -->
+              <section>
+                <div class="flex items-center mb-6">
+                  <div class="w-1 h-6 bg-brand-500 rounded-full mr-3"></div>
+                  <h3 class="text-lg font-bold text-gray-800">
+                    基本信息
+                    <span class="text-xs font-normal text-gray-400 ml-2">(已通过实名认证)</span>
+                  </h3>
+                </div>
+                <div class="flex flex-col md:flex-row gap-8">
+                  <!-- Avatar -->
+                  <div class="flex-shrink-0 flex flex-col items-center">
+                    <div class="relative group cursor-pointer w-32 h-32">
+                      <img
+                        :src="lawyerAvatar"
+                        class="w-32 h-32 rounded-full object-cover border-4 border-gray-100 shadow-sm group-hover:border-brand-200 transition-colors"
+                      />
+                      <div
+                        class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-full transition-all flex items-center justify-center"
+                      >
+                        <i class="fa-solid fa-camera text-white opacity-0 group-hover:opacity-100 text-xl"></i>
+                      </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">点击更换头像</p>
+                  </div>
+
+                  <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-2">真实姓名</label>
+                      <div class="relative">
+                        <input
+                          type="text"
+                          :value="lawyerName"
+                          class="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none"
+                          readonly
+                        />
+                        <i class="fa-solid fa-lock absolute right-3 top-3 text-gray-400 text-xs"></i>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-2">联系手机</label>
+                      <div class="relative">
+                        <input
+                          type="text"
+                          :value="lawyerPhone"
+                          class="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none"
+                          readonly
+                        />
+                        <i class="fa-solid fa-lock absolute right-3 top-3 text-gray-400 text-xs"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <hr class="border-gray-100" />
+
+              <!-- Section 2: Professional Info -->
+              <section>
+                <div class="flex items-center mb-6">
+                  <div class="w-1 h-6 bg-brand-500 rounded-full mr-3"></div>
+                  <h3 class="text-lg font-bold text-gray-800">执业资料</h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div class="md:col-span-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                      所属律师事务所 <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                      <i class="fa-solid fa-building-columns absolute left-3 top-3 text-gray-400"></i>
+                      <input
+                        type="text"
+                        v-model="certificationForm.lawFirm"
+                        placeholder="请输入律所全称"
+                        class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow hover:border-brand-300"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                      律师执业证号 <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      v-model="certificationForm.licenseNo"
+                      placeholder="17位数字执业证号"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow font-mono"
+                    />
+                    <p class="text-xs text-gray-400 mt-1">请填写《律师执业证》上的流水号</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                      执业证类型 <span class="text-red-500">*</span>
+                    </label>
+                    <select
+                      v-model="certificationForm.licenseType"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                    >
+                      <option value="">请选择执业证类型</option>
+                      <option value="lawyer">律师</option>
+                      <option value="intern">实习律师</option>
+                      <option value="other">其他</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                      发证日期 <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      v-model="certificationForm.issueDate"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                      到期日期 <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      v-model="certificationForm.expireDate"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                      常驻地区 <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex space-x-3">
+                      <select
+                        v-model="certificationForm.province"
+                        class="w-1/2 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                      >
+                        <option value="">选择省份</option>
+                        <option value="北京市">北京市</option>
+                        <option value="上海市">上海市</option>
+                        <option value="广东省">广东省</option>
+                        <option value="浙江省">浙江省</option>
+                      </select>
+                      <select
+                        v-model="certificationForm.city"
+                        class="w-1/2 px-4 py-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                      >
+                        <option value="">选择城市</option>
+                        <option value="朝阳区">朝阳区</option>
+                        <option value="海淀区">海淀区</option>
+                        <option value="浦东新区">浦东新区</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Specialties -->
+                <div class="mb-6">
+                  <label class="block text-sm font-bold text-gray-700 mb-3">
+                    擅长领域（请选择 1-3 项）<span class="text-red-500">*</span>
+                  </label>
+                  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <label
+                      v-for="specialty in specialtyOptions"
+                      :key="specialty"
+                      class="cursor-pointer relative"
+                    >
+                      <input
+                        type="checkbox"
+                        :value="specialty"
+                        v-model="certificationForm.specialtyJson"
+                        class="peer sr-only"
+                      />
+                      <div
+                        class="p-2 rounded-lg border border-gray-200 bg-white text-center text-sm font-medium text-gray-600 peer-checked:bg-blue-50 peer-checked:border-brand-500 peer-checked:text-brand-600 transition-all hover:bg-gray-50"
+                      >
+                        {{ specialty }}
+                      </div>
+                      <div
+                        class="absolute top-0 right-0 -mt-1 -mr-1 w-4 h-4 bg-brand-500 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity"
+                      >
+                        <i class="fa-solid fa-check"></i>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              <hr class="border-gray-100" />
+
+              <!-- Section 3: Document Uploads -->
+              <section>
+                <div class="flex items-center mb-6">
+                  <div class="w-1 h-6 bg-brand-500 rounded-full mr-3"></div>
+                  <h3 class="text-lg font-bold text-gray-800">证件照片上传</h3>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6 text-sm text-blue-800">
+                  <i class="fa-solid fa-circle-info mr-2"></i>
+                  请上传清晰、无遮挡的证件照片。支持 JPG/PNG 格式，单张不超过 5MB。
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <!-- License Upload -->
+                  <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                      律师执业证（信息页）<span class="text-red-500">*</span>
+                    </label>
+                    <div
+                      class="group relative w-full h-52 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:border-brand-400 hover:bg-blue-50/50 transition-all"
+                    >
+                      <input
+                        type="file"
+                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        @change="handleLicenseUpload"
+                      />
+                      <div class="flex flex-col items-center text-gray-400 group-hover:text-brand-500 transition-colors">
+                        <i class="fa-solid fa-cloud-arrow-up text-4xl mb-3"></i>
+                        <p class="font-medium">点击或拖拽上传</p>
+                      </div>
+                      <div class="absolute top-2 right-2">
+                        <i class="fa-regular fa-circle-question text-gray-400 hover:text-brand-500" title="查看示例"></i>
+                      </div>
+                    </div>
+                    <p
+                      v-if="uploadedFiles.license"
+                      class="text-xs text-green-600 mt-2 flex items-center"
+                    >
+                      <i class="fa-solid fa-check-circle mr-1"></i> 已上传：{{ uploadedFiles.license }}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Footer -->
+              <div class="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-xs text-gray-400 text-center md:text-left">
+                  提交即代表您同意
+                  <a href="#" class="text-brand-600 hover:underline">《法信平台律师入驻协议》</a><br />
+                  您的信息将严格保密，仅用于平台资质审核。
+                </p>
+                <div class="flex space-x-4 w-full md:w-auto">
+                  <button
+                    type="button"
+                    class="flex-1 md:flex-none px-8 py-3 border border-gray-300 rounded-xl text-gray-600 font-bold hover:bg-gray-50 transition"
+                  >
+                    保存草稿
+                  </button>
+                  <button
+                    type="button"
+                    @click="submitCertification"
+                    class="flex-1 md:flex-none px-8 py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition shadow-lg shadow-brand-200 transform active:scale-95"
+                  >
+                    提交审核
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -427,6 +808,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getLawyerOrders } from '@/api/order'
 import { getLawyerAppointmentList, acceptAppointment, rejectAppointment } from '@/api/appointment'
+import { uploadLawyerLicense, submitLawyerLicense } from '@/api/lawyer'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -435,9 +817,48 @@ const activeView = ref('dashboard')
 const sidebarOpen = ref(false)
 
 const lawyerName = computed(() => userStore.userInfo?.nickname || userStore.userInfo?.userName || '张伟律师')
+const lawyerPhone = computed(() => userStore.userInfo?.phone || '')
 const lawyerAvatar = computed(
   () => userStore.userInfo?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
 )
+
+const specialtyOptions = [
+  '专利侵权',
+  '交通事故',
+  '公司法务',
+  '刑事辩护',
+  '劳动纠纷',
+  '合同纠纷',
+  '婚姻家事',
+  '工伤赔偿',
+  '房产纠纷',
+  '民事纠纷',
+  '知识产权',
+  '继承纠纷'
+]
+
+const certificationForm = reactive({
+  lawFirm: '',
+  licenseNo: '',
+  licenseType: 'lawyer',
+  province: '',
+  city: '',
+  specialtyJson: [],
+  issueDate: '',
+  expireDate: '',
+  licenseFile: null,
+  ossUrl: null,
+  ossObject: null
+})
+
+const uploadedFiles = reactive({
+  license: ''
+})
+
+const certificationStatus = reactive({
+  step: 2,
+  showWarning: false
+})
 
 const metrics = reactive({
   todayConsultations: 0,
@@ -596,6 +1017,75 @@ const goToChatFromOrder = (order) => {
 const handleLogout = () => {
   userStore.logout()
   router.replace({ name: 'Auth' })
+}
+
+const handleLicenseUpload = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  try {
+    const res = await uploadLawyerLicense(file)
+    if (res.success) {
+      uploadedFiles.license = file.name
+      // 保存上传返回的 OSS 信息
+      certificationForm.licenseFile = res.data?.fileUrl || res.data
+      certificationForm.ossUrl = res.data?.ossUrl
+      certificationForm.ossObject = res.data?.ossObject
+      alert('执业证上传成功')
+    } else {
+      alert('上传失败，请重试')
+    }
+  } catch (error) {
+    console.error('执业证上传失败:', error)
+    alert('上传失败，请检查网络连接')
+  }
+}
+
+const submitCertification = async () => {
+  // 验证必填字段
+  if (
+    !certificationForm.lawFirm ||
+    !certificationForm.licenseNo ||
+    !certificationForm.licenseType ||
+    !certificationForm.province ||
+    !certificationForm.city ||
+    !certificationForm.issueDate ||
+    !certificationForm.expireDate ||
+    certificationForm.specialtyJson.length === 0||
+    !uploadedFiles.license
+  ) {
+    alert('请填写所有必填项并上传执业证')
+    return
+  }
+
+  try {
+    const submitData = {
+      lawFirm: certificationForm.lawFirm,
+      licenseNo: certificationForm.licenseNo,
+      licenseType: certificationForm.licenseType,
+      province: certificationForm.province,
+      city: certificationForm.city,
+      specialtyJson: JSON.stringify(certificationForm.specialtyJson),
+      // 执业证信息
+      issueDate: certificationForm.issueDate,
+      expireDate: certificationForm.expireDate,
+      licenseFile: certificationForm.licenseFile,
+      ossUrl: certificationForm.ossUrl,
+      ossObject: certificationForm.ossObject
+    }
+
+    const res = await submitLawyerLicense(submitData)
+    if (res.success) {
+      alert('认证信息已提交，请等待审核')
+      certificationStatus.step = 3
+      certificationStatus.showWarning = true
+    } else {
+      alert(res.message || '提交失败，请重试')
+    }
+  } catch (error) {
+    console.error('提交认证信息失败:', error)
+    alert('提交失败，请检查网络连接')
+  }
 }
 
 onMounted(() => {
