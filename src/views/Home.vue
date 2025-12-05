@@ -1,7 +1,68 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <Navbar />
-    <div class="pt-16">
+    <!-- 菜单备用显示 -->
+    <div class="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="flex justify-between h-16 items-center">
+          <div class="flex items-center cursor-pointer" @click="$router.push('/')">
+            <i class="fa-solid fa-scale-balanced text-brand-700 text-2xl mr-2"></i>
+            <span class="font-bold text-xl text-slate-900 tracking-tight">法信 LawChat</span>
+          </div>
+          <div class="hidden md:flex space-x-8">
+            <button 
+              @click="$router.push({name: 'Home'})" 
+              class="text-brand-700 border-b-2 border-brand-700 px-1 py-4 transition-colors"
+            >
+              首页
+            </button>
+            <button 
+              @click="$router.push({name: 'Lawyers'})" 
+              class="text-gray-600 hover:text-brand-700 px-1 py-4 transition-colors"
+            >
+              找律师
+            </button>
+            <button 
+              @click="$router.push({name: 'Knowledge'})" 
+              class="text-gray-600 hover:text-brand-700 px-1 py-4 transition-colors"
+            >
+              法律文库
+            </button>
+            <button 
+              @click="$router.push({name: 'Profile'})" 
+              class="text-gray-600 hover:text-brand-700 px-1 py-4 transition-colors"
+            >
+              个人中心
+            </button>
+          </div>
+          <div class="hidden md:flex items-center space-x-4">
+            <button class="text-gray-500 hover:text-brand-600">
+              <i class="fa-regular fa-bell text-lg"></i>
+            </button>
+            <div 
+              v-if="isLoggedIn"
+              class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded-full pr-3 transition"
+              @click="$router.push({name: 'Profile'})"
+            >
+              <img 
+                :src="userAvatar" 
+                class="h-8 w-8 rounded-full border border-gray-200" 
+                alt="User Avatar"
+              >
+              <span class="text-sm font-medium text-gray-700">{{ userName }}</span>
+            </div>
+            <button 
+              v-else
+              class="px-4 py-2 bg-brand-600 text-white text-sm rounded-full hover:bg-brand-700 transition"
+              @click="$router.push({name: 'Auth'})"
+            >
+              登录 / 注册
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pt-0">
       <!-- Hero Section with Chat -->
       <div class="relative bg-gradient-to-b from-brand-50 to-white pb-12">
         <div class="max-w-4xl mx-auto px-4 pt-12 sm:pt-20">
@@ -101,7 +162,9 @@
       <div class="max-w-7xl mx-auto px-4 py-12">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold text-slate-800">常见法律服务</h2>
-          <a href="#" class="text-brand-600 hover:underline text-sm">查看全部 ></a>
+          <router-link to="/lawyers" class="text-brand-600 hover:underline text-sm">
+            查看全部 >
+    </router-link>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div 
@@ -149,6 +212,9 @@ const chatId = ref(`chat_${Date.now()}`)
 const userAvatar = computed(() => 
   userStore.userInfo?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User123'
 )
+
+const userName = computed(() => userStore.userInfo?.nickname || '游客')
+const isLoggedIn = computed(() => userStore.isLoggedIn)
 
 const categories = [
   { id: 1, title: '刑事辩护', description: '刑事案件代理与辩护', icon: 'fa-solid fa-user-shield', bgColor: 'bg-emerald-50 text-emerald-600', hoverColor: 'group-hover:bg-emerald-600' },

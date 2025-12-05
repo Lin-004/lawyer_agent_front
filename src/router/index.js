@@ -5,6 +5,7 @@ import Profile from '../views/Profile.vue'
 import Knowledge from '../views/Knowledge.vue'
 import Auth from '../views/Auth.vue'
 import LawyerWorkbench from '../views/LawyerWorkbench.vue'
+import LawyerChat from '../views/LawyerChat.vue'
 import Admin from '../views/Admin.vue'
 import Chat from '../views/Chat.vue'
 import { useUserStore } from '@/stores/user'
@@ -44,6 +45,12 @@ const routes = [
     path: '/lawyer',
     name: 'LawyerWorkbench',
     component: LawyerWorkbench
+  },
+  {
+    path: '/lawyer/chat',
+    name: 'LawyerChat',
+    // 重定向到工作台，避免存在独立的聊天入口导致实现分叉
+    redirect: '/lawyer'
   },
   {
     path: '/admin',

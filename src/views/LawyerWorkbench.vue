@@ -265,32 +265,9 @@
         <!-- Chat View -->
         <section
           v-show="activeView === 'chat'"
-          class="h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] max-w-7xl mx-auto flex rounded-xl shadow-sm border border-gray-200 overflow-hidden bg-white"
+          class="h-[calc(90vh)] w-full flex rounded-xl shadow-sm border border-gray-200 overflow-hidden bg-white"
         >
-          <!-- 简化版：右侧为当前会话，左侧列表静态展示 -->
-          <div class="w-80 border-r border-gray-100 bg-gray-50 hidden md:flex flex-col">
-            <div class="p-4 border-b border-gray-100">
-              <input
-                type="text"
-                placeholder="搜索联系人..."
-                class="w-full px-3 py-2 bg-white border border-gray-200 rounded text-sm focus:outline-none focus:border-brand-500"
-              />
-            </div>
-            <div class="flex-1 overflow-y-auto">
-              <div class="p-3 hover:bg-white hover:shadow-sm cursor-pointer transition border-l-4 border-brand-600 bg-white">
-                <div class="flex justify-between items-start">
-                  <div class="flex items-center">
-                    <div class="w-10 h-10 rounded-full bg-gray-200"></div>
-                    <div class="ml-3">
-                      <div class="font-bold text-sm text-gray-900">王小明</div>
-                      <div class="text-xs text-gray-500 truncate w-32">好的，我把证据发给您...</div>
-                    </div>
-                  </div>
-                  <div class="text-xs text-gray-400">14:20</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- 已移除静态占位联系人列，改用可重用聊天面板（在小屏幕下自动布局） -->
 
           <div class="flex-1 flex flex-col bg-white">
             <div class="h-16 border-b border-gray-100 flex justify-between items-center px-6">
@@ -308,22 +285,12 @@
             </div>
 
             <div class="flex-1 overflow-y-auto p-6 bg-gray-50/30 space-y-4">
-              <div class="text-center text-xs text-gray-400 my-4">会话记录示例（实际聊天在用户端）</div>
-              <!-- 这里可以后续接入真实聊天记录 -->
+              <!-- 嵌入真正的聊天面板 -->
+              <LawyerChatPanel />
             </div>
           </div>
 
-          <div class="w-64 border-l border-gray-100 bg-white hidden xl:block flex flex-col">
-            <div class="p-4 border-b border-gray-100">
-              <h4 class="font-bold text-sm text-gray-800">案件笔记</h4>
-            </div>
-            <div class="p-4 flex-1 overflow-y-auto">
-              <textarea
-                class="w-full h-full bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-gray-700 focus:outline-none resize-none"
-                placeholder="在此记录案情重点、关键时间节点..."
-              ></textarea>
-            </div>
-          </div>
+          <!-- 案件笔记已移除：律师端聊天室不再显示案件笔记 -->
         </section>
 
         <!-- Orders View -->
@@ -806,6 +773,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import LawyerChatPanel from '@/components/LawyerChatPanel.vue'
 import { getLawyerOrders } from '@/api/order'
 import { getLawyerAppointmentList, acceptAppointment, rejectAppointment } from '@/api/appointment'
 import { uploadLawyerLicense, submitLawyerLicense } from '@/api/lawyer'
@@ -882,6 +850,11 @@ const currentTitle = computed(() => {
 })
 
 const switchView = (view) => {
+  if (view === 'chat') {
+    // 在工作台内展示聊天面板，而不是跳转到独立的聊天页面，这样左侧侧边栏不会消失
+    activeView.value = 'chat'
+    return
+  }
   activeView.value = view
   if (view === 'orders') {
     loadOrders()

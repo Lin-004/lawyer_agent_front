@@ -1,7 +1,68 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <Navbar />
-    <div class="pt-16">
+    <!-- 菜单备用显示 -->
+    <div class="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="flex justify-between h-16 items-center">
+          <div class="flex items-center cursor-pointer" @click="$router.push('/')">
+            <i class="fa-solid fa-scale-balanced text-brand-700 text-2xl mr-2"></i>
+            <span class="font-bold text-xl text-slate-900 tracking-tight">法信 LawChat</span>
+          </div>
+          <div class="hidden md:flex space-x-8">
+            <button 
+              @click="$router.push({name: 'Home'})" 
+              class="text-gray-600 hover:text-brand-700 px-1 py-4 transition-colors"
+            >
+              首页
+            </button>
+            <button 
+              @click="$router.push({name: 'Lawyers'})" 
+              class="text-gray-600 hover:text-brand-700 px-1 py-4 transition-colors"
+            >
+              找律师
+            </button>
+            <button 
+              @click="$router.push({name: 'Knowledge'})" 
+              class="text-gray-600 hover:text-brand-700 px-1 py-4 transition-colors"
+            >
+              法律文库
+            </button>
+            <button 
+              @click="$router.push({name: 'Profile'})" 
+              class="text-brand-700 border-b-2 border-brand-700 px-1 py-4 transition-colors"
+            >
+              个人中心
+            </button>
+          </div>
+          <div class="hidden md:flex items-center space-x-4">
+            <button class="text-gray-500 hover:text-brand-600">
+              <i class="fa-regular fa-bell text-lg"></i>
+            </button>
+            <div 
+              v-if="isLoggedIn"
+              class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded-full pr-3 transition"
+              @click="$router.push({name: 'Profile'})"
+            >
+              <img 
+                :src="userAvatar" 
+                class="h-8 w-8 rounded-full border border-gray-200" 
+                alt="User Avatar"
+              >
+              <span class="text-sm font-medium text-gray-700">{{ userName }}</span>
+            </div>
+            <button 
+              v-else
+              class="px-4 py-2 bg-brand-600 text-white text-sm rounded-full hover:bg-brand-700 transition"
+              @click="$router.push({name: 'Auth'})"
+            >
+              登录 / 注册
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pt-8">
       <div class="max-w-5xl mx-auto px-4 py-8">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <!-- User Info Card -->

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="min-h-screen bg-gray-50">
     <Navbar />
     <div class="pt-16">
@@ -41,23 +41,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import { getLawyerDetail } from '@/api/lawyer'
-import { getChatHistory, sendMessage, createChat } from '@/api/chat'
+import { useChatStore } from '@/stores/chat'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const lawyerId = route.query.lawyerId || route.query.id
 
 const lawyer = ref({})
-const messages = ref([])
 const input = ref('')
 const msgContainer = ref(null)
 const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=User123'
-let pollTimer = null
-let chatId = null
+const currentSessionId = ref(null)
+
+// Pinia chat store (负责 websocket、会话、消息、未读等)
+const chatStore = useChatStore()
+
+// 计算当前会话消息数组（映射为 Chat.vue 期望的简单结构）
+const messages = computed(() => {
+  const sid = currentSessionId.value
+  if (!sid) return []
+  const page = chatStore.messages[sid]
+  if (!page || !Array.isArray(page.records)) return []
+  // 将后端记录映射成 { from: 'user'|'lawyer', content }
+  const userStore = useUserStore()
+  return page.records.map(m => {
+    // 判断消息来源：如果 senderId 是当前用户ID，则为 'user'，否则为 'lawyer'
+    const from = m.senderId === userStore.userId ? 'user' : 'lawyer'
+    return { from, content: m.content || m.message || m.text || '' }
+  })
+})
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -77,65 +94,58 @@ const loadLawyer = async () => {
   }
 }
 
-const loadHistory = async () => {
+const ensureSessionAndOpen = async () => {
+  // 创建或获取会话 ID（createSession 映射到 /consult/session/create）
   try {
-    const params = {}
-    if (chatId) params.chatId = chatId
-    else if (lawyerId) params.lawyerId = lawyerId
-    const res = await getChatHistory(params)
-    // 期望后端返回消息数组: [{ from: 'user'|'lawyer', content, createdAt }]
-    if (Array.isArray(res)) {
-      messages.value = res.map((m) => ({ from: m.from === 'user' ? 'user' : 'lawyer', content: m.content }))
-      scrollToBottom()
-    } else if (res?.messages) {
-      messages.value = res.messages
-      scrollToBottom()
+    const sid = await chatStore.createSession(lawyerId)
+    currentSessionId.value = sid
+    if (sid) {
+      await chatStore.openSession(sid)
+    } else {
+      // 没拿到 sessionId，尝试从已有会话中查找
+      await chatStore.loadSessions()
+      const existing = chatStore.sessions.find(s => s.targetId == lawyerId)
+      if (existing) {
+        currentSessionId.value = existing.sessionId
+        await chatStore.openSession(existing.sessionId)
+      }
     }
   } catch (e) {
-    console.error('加载聊天历史失败', e)
+    console.warn('初始化会话失败', e)
   }
 }
 
 const onSend = async () => {
   const text = input.value && input.value.trim()
-  if (!text) return
+  if (!text || !currentSessionId.value) return
 
-  // 添加本地消息
-  messages.value.push({ from: 'user', content: text })
-  scrollToBottom()
-
-  // 清空输入
-  input.value = ''
-
-  try {
-    // 确保有 chatId（可选创建）
-    if (!chatId) {
-      try {
-        const c = await createChat({ lawyerId })
-        chatId = c?.chatId || c?.id || chatId
-      } catch (err) {
-        // 如果后端未实现 createChat，也可继续不设置 chatId
-        console.warn('createChat 失败或未实现，继续发送消息', err)
-      }
-    }
-
-    await sendMessage({ toLawyerId: lawyerId, chatId, content: text })
-  } catch (e) {
-    console.error('发送消息失败', e)
+  // 通过 store 发送（store 会走 websocket 并做乐观更新）
+  const ok = chatStore.sendMessage({ sessionId: currentSessionId.value, receiverId: lawyerId, content: text, type: 'text' })
+  if (!ok) {
+    console.warn('消息未通过 WebSocket 发送（socket 未就绪）')
   }
+
+  // 清空输入并滚动
+  input.value = ''
+  scrollToBottom()
 }
 
 onMounted(async () => {
   await loadLawyer()
-  await loadHistory()
+  // 启动 store（加载会话并打开 websocket）
+  await chatStore.boot()
 
-  // 简单轮询实现：每 3 秒拉取消息（后端推荐使用 websocket 或 SSE）
-  pollTimer = setInterval(() => {
-    loadHistory()
-  }, 3000)
+  // 确保当前 sessionId 并打开会话（load messages）
+  await ensureSessionAndOpen()
+
+  // 将消息容器注册给 store（用于自动滚动）
+  nextTick(() => {
+    if (msgContainer.value) chatStore.registerChatContainer(msgContainer.value)
+  })
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  // 视需求可关闭 socket（此处保持 socket 以便后台推送）
+  // chatStore.closeSocket()
 })
 </script>

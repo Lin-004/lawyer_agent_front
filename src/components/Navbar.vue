@@ -1,5 +1,5 @@
 <template>
-  <nav class="fixed w-full z-50 glass-effect border-b border-gray-100 shadow-sm transition-all duration-300" id="navbar">
+  <nav v-if="!isLawyerRoute" class="fixed w-full z-50 glass-effect border-b border-gray-100 shadow-sm transition-all duration-300" id="navbar">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16 items-center">
         <div class="flex items-center cursor-pointer" @click="$router.push('/')">
@@ -78,11 +78,21 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+
+// 如果是律师端路径（以 /lawyer 开头），则隐藏此导航
+const isLawyerRoute = computed(() => {
+  try {
+    return route.path && route.path.startsWith('/lawyer')
+  } catch (e) {
+    return false
+  }
+})
 
 const userName = computed(() => userStore.userInfo?.nickname || '游客')
 const userAvatar = computed(() => 
