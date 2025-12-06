@@ -35,3 +35,12 @@ export function getUserInfo(id) {
   })
 }
 
+// 修改个人信息
+export function updateProfile(data) {
+  return request({
+    url: '/profile',
+    method: 'put',
+    data
+  })
+}
+

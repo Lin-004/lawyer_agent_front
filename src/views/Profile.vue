@@ -132,7 +132,13 @@
                   <i class="fa-regular fa-heart w-6"></i> 历史订单
                 </button>
                 <button 
-                  class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition w-full text-left"
+                  @click="switchTab('settings')"
+                  :class="[
+                    'flex items-center px-4 py-2 rounded-lg transition w-full text-left',
+                    activeTab === 'settings' 
+                      ? 'bg-brand-50 text-brand-700' 
+                      : 'text-gray-600 hover:bg-gray-50'
+                  ]"
                 >
                   <i class="fa-solid fa-gear w-6"></i> 账号设置
                 </button>
@@ -202,7 +208,7 @@
                   class="px-4 py-2 bg-blue-50 text-blue-600 text-sm rounded-lg hover:bg-blue-100"
                   @click="switchTab('appointments')"
                 >
-                  查看预约详情
+                  查看预约记录
                 </button>
               </div>
             </div>
@@ -353,6 +359,103 @@
               </div>
             </div>
 
+            <!-- Settings -->
+            <div v-if="activeTab === 'settings'" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div class="flex justify-between items-center mb-6">
+                <h3 class="font-bold text-lg text-gray-800">账号设置</h3>
+              </div>
+              
+              <div v-if="loadingUserInfo" class="text-center py-8">
+                <i class="fa-solid fa-spinner fa-spin text-2xl text-gray-400"></i>
+              </div>
+              
+              <div v-else class="space-y-6">
+                <!-- User Info Display/Edit -->
+                <div class="border-b border-gray-100 pb-6">
+                  <h4 class="text-sm font-semibold text-gray-600 mb-4">基本信息</h4>
+                  <div class="space-y-4">
+                    <div class="flex items-center">
+                      <label class="w-24 text-sm text-gray-600">用户名</label>
+                      <div class="flex-1 text-sm text-gray-900">{{ currentUserInfo.userName || '--' }}</div>
+                    </div>
+                    <div class="flex items-center">
+                      <label class="w-24 text-sm text-gray-600">手机号</label>
+                      <div class="flex-1 text-sm text-gray-900">{{ currentUserInfo.phone || '--' }}</div>
+                    </div>
+                    <div class="flex items-center">
+                      <label class="w-24 text-sm text-gray-600">角色</label>
+                      <div class="flex-1 text-sm text-gray-900">{{ getRoleText(currentUserInfo.role) }}</div>
+                    </div>
+                    <div class="flex items-center">
+                      <label class="w-24 text-sm text-gray-600">状态</label>
+                      <div class="flex-1">
+                        <span :class="[
+                          'px-2 py-1 rounded text-xs font-medium',
+                          currentUserInfo.status === 1 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        ]">
+                          {{ currentUserInfo.status === 1 ? '正常' : '禁用' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Editable Nickname -->
+                <div class="border-b border-gray-100 pb-6">
+                  <h4 class="text-sm font-semibold text-gray-600 mb-4">可编辑信息</h4>
+                  <div class="space-y-4">
+                    <div class="flex items-center">
+                      <label class="w-24 text-sm text-gray-600">昵称</label>
+                      <div class="flex-1 flex items-center gap-3">
+                        <input 
+                          v-if="isEditingNickname"
+                          v-model="editNickname"
+                          type="text"
+                          placeholder="请输入昵称"
+                          class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        >
+                        <div v-else class="flex-1 text-sm text-gray-900">{{ currentUserInfo.nickname || '--' }}</div>
+                        <button 
+                          v-if="!isEditingNickname"
+                          @click="startEditNickname"
+                          class="px-3 py-1 text-sm text-brand-600 hover:bg-brand-50 rounded-lg transition"
+                        >
+                          编辑
+                        </button>
+                        <template v-else>
+                          <button 
+                            @click="saveNickname"
+                            :disabled="savingNickname"
+                            class="px-3 py-1 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition disabled:opacity-50"
+                          >
+                            {{ savingNickname ? '保存中...' : '保存' }}
+                          </button>
+                          <button 
+                            @click="cancelEditNickname"
+                            :disabled="savingNickname"
+                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
+                          >
+                            取消
+                          </button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tips -->
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                  <div class="flex items-start">
+                    <i class="fa-solid fa-circle-info text-blue-600 mt-0.5 mr-2"></i>
+                    <div class="text-sm text-blue-700">
+                      <p class="font-medium mb-1">温馨提示</p>
+                      <p class="text-xs">目前仅支持修改昵称，如需修改其他信息，请联系客服。</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Appointments List -->
             <div v-if="activeTab === 'appointments'" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div class="flex justify-between items-center mb-4">
@@ -401,6 +504,7 @@ import Footer from '@/components/Footer.vue'
 import { useUserStore } from '@/stores/user'
 import { getUserOrders } from '@/api/order'
 import { getAppointmentList } from '@/api/appointment'
+import { getUserInfo, updateProfile } from '@/api/user'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -424,6 +528,11 @@ const appointments = ref([])
 const loadingOrders = ref(false)
 const loadingAppointments = ref(false)
 const dataInitialized = ref(false)
+const loadingUserInfo = ref(false)
+const currentUserInfo = ref({})
+const isEditingNickname = ref(false)
+const editNickname = ref('')
+const savingNickname = ref(false)
 
 const userName = computed(() => userStore.userInfo?.nickname || '王小明')
 const userAvatar = computed(() => 
@@ -433,6 +542,7 @@ const userRole = computed(() => {
   const role = userStore.userInfo?.role
   return role === 'user' ? '普通会员' : role === 'lawyer' ? '律师' : '管理员'
 })
+const isLoggedIn = computed(() => !!userStore.token)
 
 const stats = computed(() => ({
   totalConsultations: orderPagination.total || orders.value.length,
@@ -444,12 +554,14 @@ const stats = computed(() => ({
 const activeConsultation = computed(() => orders.value.find(order => Number(order.status) === 1) || null)
 
 const nextAppointment = computed(() => {
+  const now = Date.now()
   const sortable = appointments.value
     .filter(item => [1, 2].includes(Number(item.status)))
     .map(item => ({
       ...item,
       _timestamp: toTimestamp(item.scheduleDate, item.startTime)
     }))
+    .filter(item => item._timestamp > now)
     .sort((a, b) => a._timestamp - b._timestamp)
 
   return sortable[0] || null
@@ -468,6 +580,9 @@ const switchTab = (tab) => {
   }
   if (tab === 'appointments' && !appointments.value.length) {
     loadAppointments()
+  }
+  if (tab === 'settings' && !currentUserInfo.value.id) {
+    loadUserInfo()
   }
 }
 
@@ -580,6 +695,65 @@ const toTimestamp = (dateStr, timeStr) => {
 const refreshProfileData = () => {
   loadOrders()
   loadAppointments()
+}
+
+const loadUserInfo = async () => {
+  if (!userStore.userId) return
+
+  loadingUserInfo.value = true
+  try {
+    const res = await getUserInfo(userStore.userId)
+    const userData = res?.data || res
+    currentUserInfo.value = userData || {}
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
+  } finally {
+    loadingUserInfo.value = false
+  }
+}
+
+const startEditNickname = () => {
+  editNickname.value = currentUserInfo.value.nickname || ''
+  isEditingNickname.value = true
+}
+
+const cancelEditNickname = () => {
+  isEditingNickname.value = false
+  editNickname.value = ''
+}
+
+const saveNickname = async () => {
+  if (savingNickname.value) return
+
+  savingNickname.value = true
+  try {
+    const res = await updateProfile({ nickname: editNickname.value })
+    if (res?.success || res?.code === '00000') {
+      currentUserInfo.value.nickname = editNickname.value
+      // 更新 store 中的用户信息
+      if (userStore.userInfo) {
+        userStore.userInfo.nickname = editNickname.value
+      }
+      isEditingNickname.value = false
+      alert('昵称修改成功')
+    } else {
+      alert(res?.message || '修改失败')
+    }
+  } catch (error) {
+    console.error('修改昵称失败:', error)
+    alert('修改失败，请稍后重试')
+  } finally {
+    savingNickname.value = false
+  }
+}
+
+const getRoleText = (role) => {
+  const roleMap = {
+    user: '普通用户',
+    lawyer: '律师',
+    admin: '管理员'
+  }
+  return roleMap[role] || '--'
 }
 
 const handleLogout = () => {
