@@ -78,10 +78,7 @@
                 <p class="text-xs text-brand-600 uppercase tracking-wide">有效文档</p>
                 <p class="text-2xl font-bold text-brand-700 mt-1">{{ activeDocuments }}</p>
               </div>
-              <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                <p class="text-xs text-slate-500 uppercase tracking-wide">来源类型</p>
-                <p class="text-2xl font-bold text-slate-800 mt-1">{{ sourceOptions.length - 1 }}</p>
-              </div>
+              
             </div>
           </div>
 
@@ -97,14 +94,7 @@
                 />
               </div>
             </div>
-            <select
-              v-model="sourceFilter"
-              class="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option v-for="source in sourceOptions" :key="source" :value="source">
-                {{ sourceLabel(source) }}
-              </option>
-            </select>
+            
             <div class="flex items-center gap-3">
               <select
                 v-model="typeFilter"
@@ -134,7 +124,7 @@
             </div>
             <div class="flex items-center text-sm text-gray-400 gap-2">
               <i class="fa-solid fa-circle-info"></i>
-              数据来源：知识库管理接口
+              数据来源：网上公开法律文库及法规数据库，内容仅供参考使用。
             </div>
           </header>
 
@@ -363,7 +353,7 @@ const filteredDocuments = computed(() =>
   })
 )
 
-const sourceLabel = (value) => (value === 'all' ? '全部来源' : value || '未分类')
+
 const typeLabel = (value) => (value === 'all' ? '全部类型' : value?.toUpperCase?.() || '未知')
 
 const fileIcon = (type = '') => {

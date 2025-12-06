@@ -18,6 +18,15 @@ export function getAppointmentList(params) {
   })
 }
 
+// 获取律师可预约时间段（用户端）
+export function getLawyerSchedules(lawyerId) {
+  return request({
+    url: '/lawyer/schedule/list',
+    method: 'get',
+    params: { lawyerId }
+  })
+}
+
 // 律师查看预约记录
 export function getLawyerAppointmentList(params) {
   return request({

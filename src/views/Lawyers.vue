@@ -163,6 +163,7 @@
                 :key="lawyer.id"
                 :lawyer="lawyer"
                 @consult="handleConsult"
+                @appointment="handleAppointment"
               />
             </div>
             
@@ -179,6 +180,104 @@
         </div>
       </div>
     </div>
+
+    <!-- Appointment Modal -->
+    <teleport to="body" v-if="appointmentModal.show">
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+          <!-- Modal Header -->
+          <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-900">预约面谈 - {{ appointmentModal.lawyer?.name }}</h3>
+            <button @click="closeAppointmentModal" class="text-gray-400 hover:text-gray-600">
+              <i class="fa-solid fa-times text-xl"></i>
+            </button>
+          </div>
+
+          <!-- Modal Content -->
+          <div class="p-6 space-y-6">
+            <!-- Lawyer Info -->
+            <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+              <img 
+                :src="appointmentModal.lawyer?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'" 
+                class="w-16 h-16 rounded-lg object-cover"
+              >
+              <div>
+                <p class="font-bold text-gray-900">{{ appointmentModal.lawyer?.name }}</p>
+                <p class="text-sm text-gray-600">{{ appointmentModal.lawyer?.lawFirm }}</p>
+                <p class="text-sm text-brand-600 font-medium mt-1">¥{{ appointmentModal.lawyer?.price || 300 }}/次</p>
+              </div>
+            </div>
+
+            <!-- Schedule Selection -->
+            <div>
+              <h4 class="font-bold text-gray-900 mb-3">选择预约时间段</h4>
+              <div v-if="appointmentModal.loading" class="text-center py-8 text-gray-400">
+                <i class="fa-solid fa-spinner fa-spin mr-2"></i>加载可预约时间...
+              </div>
+              <div v-else-if="appointmentModal.schedules.length === 0" class="text-center py-8 text-gray-500">
+                该律师暂无可预约时间段
+              </div>
+              <div v-else class="space-y-3 max-h-96 overflow-y-auto">
+                <label 
+                  v-for="schedule in appointmentModal.schedules" 
+                  :key="schedule.id"
+                  class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-brand-500 hover:bg-blue-50 cursor-pointer transition"
+                  :class="{ 'border-brand-500 bg-blue-50': appointmentModal.selectedScheduleId === schedule.id }"
+                >
+                  <input 
+                    type="radio"
+                    :value="schedule.id"
+                    v-model="appointmentModal.selectedScheduleId"
+                    class="w-4 h-4 text-brand-600 cursor-pointer"
+                  >
+                  <div class="ml-4 flex-1">
+                    <p class="font-medium text-gray-900">{{ schedule.date }}</p>
+                    <p class="text-sm text-gray-600">
+                      {{ formatSlotTime(schedule) }}
+                      <span 
+                        :class="getScheduleStatusClass(schedule.status)"
+                        class="ml-2 px-2 py-0.5 rounded text-xs font-medium"
+                      >
+                        {{ getScheduleStatusText(schedule.status) }}
+                      </span>
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Remarks -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">备注（可选）</label>
+              <textarea 
+                v-model="appointmentModal.remarks"
+                placeholder="请输入您的需求或特殊说明..."
+                rows="3"
+                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
+              ></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 pt-4 border-t border-gray-100">
+              <button 
+                @click="closeAppointmentModal"
+                class="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+              >
+                取消
+              </button>
+              <button 
+                @click="submitAppointment"
+                :disabled="!appointmentModal.selectedScheduleId || appointmentModal.submitting"
+                class="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {{ appointmentModal.submitting ? '提交中...' : '确认预约' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
     <Footer />
   </div>
 </template>
@@ -191,6 +290,7 @@ import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import LawyerCard from '@/components/LawyerCard.vue'
 import { getLawyerList, getSpecialties } from '@/api/lawyer'
+import { createAppointment, getLawyerSchedules } from '@/api/appointment'
 
 const router = useRouter()
 const route = useRoute()
@@ -215,6 +315,16 @@ const filters = ref({
   specialty: [],
   years: '',
   maxPrice: 2000
+})
+
+const appointmentModal = ref({
+  show: false,
+  lawyer: null,
+  schedules: [],
+  selectedScheduleId: null,
+  remarks: '',
+  loading: false,
+  submitting: false
 })
 
 const sortOptions = [
@@ -331,6 +441,109 @@ const applyFilters = () => {
 
 const handleConsult = (lawyer) => {
   router.push({ name: 'Chat', query: { lawyerId: lawyer.id } })
+}
+
+const handleAppointment = async (lawyer) => {
+  if (!isLoggedIn.value) {
+    alert('请先登录')
+    router.push({ name: 'Auth' })
+    return
+  }
+  
+  appointmentModal.value.lawyer = lawyer
+  appointmentModal.value.schedules = []
+  appointmentModal.value.selectedScheduleId = null
+  appointmentModal.value.remarks = ''
+  appointmentModal.value.show = true
+  
+  // 加载律师的可预约时间段
+  appointmentModal.value.loading = true
+  try {
+    const res = await getLawyerSchedules(lawyer.id)
+    if (res.success && Array.isArray(res.data)) {
+      // 过滤可预约的时间段（status === 1）
+      appointmentModal.value.schedules = res.data.filter(s => s.status === 1)
+      if (appointmentModal.value.schedules.length === 0) {
+        alert('该律师暂无可预约时间段')
+      }
+    }
+  } catch (error) {
+    console.error('加载律师可预约时间段失败', error)
+    alert('加载时间段失败，请稍后重试')
+  } finally {
+    appointmentModal.value.loading = false
+  }
+}
+
+const closeAppointmentModal = () => {
+  appointmentModal.value.show = false
+  appointmentModal.value.lawyer = null
+  appointmentModal.value.schedules = []
+  appointmentModal.value.selectedScheduleId = null
+  appointmentModal.value.remarks = ''
+}
+
+const formatSlotTime = (slot) => {
+  if (!slot) return '--'
+  const formatTime = (timeObj) => {
+    if (typeof timeObj === 'string') {
+      return timeObj.substring(0, 5)
+    }
+    if (timeObj && typeof timeObj.hour !== 'undefined') {
+      const pad = (n) => String(n ?? 0).padStart(2, '0')
+      return `${pad(timeObj.hour)}:${pad(timeObj.minute)}`
+    }
+    return '--'
+  }
+  return `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`
+}
+
+const getScheduleStatusText = (status) => {
+  const map = {
+    1: '可预约',
+    2: '已预约',
+    3: '不可用'
+  }
+  return map[status] || '可预约'
+}
+
+const getScheduleStatusClass = (status) => {
+  const map = {
+    1: 'bg-green-50 text-green-700',
+    2: 'bg-amber-50 text-amber-700',
+    3: 'bg-gray-100 text-gray-600'
+  }
+  return map[status] || 'bg-green-50 text-green-700'
+}
+
+const submitAppointment = async () => {
+  if (!appointmentModal.value.selectedScheduleId) {
+    alert('请选择预约时间段')
+    return
+  }
+  
+  appointmentModal.value.submitting = true
+  try {
+    const res = await createAppointment({
+      userId: userStore.userInfo?.id,
+      lawyerId: appointmentModal.value.lawyer.id,
+      scheduleId: appointmentModal.value.selectedScheduleId,
+      status: 1,
+      remarks: appointmentModal.value.remarks
+    })
+    
+    if (res.success) {
+      alert('预约请求已提交，请等待律师确认')
+      closeAppointmentModal()
+    } else {
+      alert(res.message || '预约失败，请稍后重试')
+    }
+  } catch (error) {
+    console.error('提交预约失败', error)
+    alert('提交预约失败，请稍后重试')
+  } finally {
+    appointmentModal.value.submitting = false
+  }
 }
 
 const loadSpecialties = async () => {

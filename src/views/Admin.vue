@@ -640,30 +640,59 @@
         <section v-show="activeView === 'content'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 class="font-bold text-slate-800">已发布文章</h3>
+              <h3 class="font-bold text-slate-800">知识库文档</h3>
               <span class="text-xs text-gray-400">共 {{ knowledgeState.items.length }} 篇</span>
             </div>
             <div v-if="knowledgeState.loading" class="text-center py-10 text-gray-400 text-sm">
               <i class="fa-solid fa-spinner fa-spin mr-2"></i>加载中...
             </div>
             <div v-else-if="knowledgeState.items.length === 0" class="text-center py-10 text-gray-500 text-sm">
-              暂无文章
+              暂无文档
             </div>
             <div v-else class="divide-y divide-gray-100">
               <div
                 v-for="article in knowledgeState.items"
                 :key="article.id || article.fileName"
-                class="p-6 hover:bg-gray-50 transition flex justify-between gap-4"
+                class="p-6 hover:bg-gray-50 transition"
               >
-                <div class="flex-1">
-                  <p class="font-bold text-gray-900">{{ article.title || article.fileName }}</p>
-                  <p class="text-xs text-gray-500 mt-1">{{ article.summary || '暂无摘要' }}</p>
-                </div>
-                <div class="text-right">
-                  <div class="text-xs text-gray-400 mb-3">
-                    <p>{{ article.source || '知识库' }}</p>
-                    <p class="mt-1">{{ formatDate(article.uploadTime || article.createTime) }}</p>
+                <div class="flex justify-between gap-4 mb-3">
+                  <div class="flex-1">
+                    <p class="font-bold text-gray-900">{{ article.title || article.fileName }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ article.summary || '暂无摘要' }}</p>
                   </div>
+                  <div class="text-right flex-shrink-0">
+                    <span
+                      :class="[
+                        'text-xs font-medium px-2 py-1 rounded inline-block',
+                        article.status === 'active'
+                          ? 'bg-green-50 text-green-700'
+                          : article.status === 'disabled'
+                            ? 'bg-gray-50 text-gray-600'
+                            : 'bg-yellow-50 text-yellow-700'
+                      ]"
+                    >
+                      {{ getKnowledgeStatusLabel(article.status) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-xs text-gray-400 mb-3">
+                  <p>{{ article.source || '知识库' }} · {{ formatDate(article.uploadTime || article.createTime) }}</p>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    v-if="article.status !== 'active'"
+                    class="text-green-600 bg-green-50 px-3 py-1 rounded hover:bg-green-100 transition text-xs font-medium"
+                    @click="handlePublishKnowledge(article)"
+                  >
+                    发布
+                  </button>
+                  <button
+                    v-if="article.status === 'active'"
+                    class="text-amber-600 bg-amber-50 px-3 py-1 rounded hover:bg-amber-100 transition text-xs font-medium"
+                    @click="handleDisableKnowledge(article)"
+                  >
+                    禁用
+                  </button>
                   <button
                     class="text-red-600 bg-red-50 px-3 py-1 rounded hover:bg-red-100 transition text-xs font-medium"
                     @click="handleDeleteKnowledge(article)"
@@ -745,7 +774,7 @@ import {
   disableUser,
   enableUser
 } from '@/api/admin'
-import { getKnowledgeList, uploadKnowledgeFile, deleteKnowledgeFile } from '@/api/knowledge'
+import { getKnowledgeList, uploadKnowledgeFile, deleteKnowledgeFile, publishKnowledge, disableKnowledge } from '@/api/knowledge'
 
 const router = useRouter()
 const sidebarOpen = ref(false)
@@ -1282,6 +1311,61 @@ const handleDeleteKnowledge = async (article) => {
       console.log('文档删除成功')
     } catch (error) {
       console.error('文档删除失败', error)
+    } finally {
+      confirmDialog.loading = false
+    }
+  }
+  confirmDialog.show = true
+}
+
+const getKnowledgeStatusLabel = (status) => {
+  switch (status) {
+    case 'active':
+      return '已发布'
+    case 'disabled':
+      return '已禁用'
+    case 'draft':
+      return '草稿'
+    default:
+      return status || '待发布'
+  }
+}
+
+const handlePublishKnowledge = async (article) => {
+  confirmDialog.title = '发布文档'
+  confirmDialog.message = `确定要发布文档 "${article.title || article.fileName}" 吗？发布后用户将能看到此文档。`
+  confirmDialog.confirmText = '发布'
+  confirmDialog.cancelText = '取消'
+  confirmDialog.action = async () => {
+    try {
+      confirmDialog.loading = true
+      await publishKnowledge(article.id)
+      confirmDialog.show = false
+      loadKnowledge() // 刷新知识库列表
+      console.log('文档发布成功')
+    } catch (error) {
+      console.error('文档发布失败', error)
+    } finally {
+      confirmDialog.loading = false
+    }
+  }
+  confirmDialog.show = true
+}
+
+const handleDisableKnowledge = async (article) => {
+  confirmDialog.title = '禁用文档'
+  confirmDialog.message = `确定要禁用文档 "${article.title || article.fileName}" 吗？禁用后用户将无法访问此文档。`
+  confirmDialog.confirmText = '禁用'
+  confirmDialog.cancelText = '取消'
+  confirmDialog.action = async () => {
+    try {
+      confirmDialog.loading = true
+      await disableKnowledge(article.id)
+      confirmDialog.show = false
+      loadKnowledge() // 刷新知识库列表
+      console.log('文档禁用成功')
+    } catch (error) {
+      console.error('文档禁用失败', error)
     } finally {
       confirmDialog.loading = false
     }

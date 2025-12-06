@@ -29,4 +29,20 @@ export function deleteKnowledgeFile(id) {
   })
 }
 
+// 发布知识库文档
+export function publishKnowledge(id) {
+  return request({
+    url: `/knowledge/publish/${id}`,
+    method: 'post'
+  })
+}
+
+// 禁用知识库文档
+export function disableKnowledge(id) {
+  return request({
+    url: `/knowledge/disable/${id}`,
+    method: 'post'
+  })
+}
+
 

@@ -39,12 +39,18 @@ export const useChatStore = defineStore('chat', () => {
       const res = await chatApi.getMessageList(params)
       if (res && res.data && res.data.records) {
         const page = messages[sessionId] || { records: [], total: 0, pageNum: 0 }
-        // keep pages; newest messages are expected to be at the end
+        // Sort by timestamp to ensure chronological order (oldest first)
+        const sortedRecords = res.data.records.slice().sort((a, b) => {
+          const timeA = new Date(a.time).getTime()
+          const timeB = new Date(b.time).getTime()
+          return timeA - timeB
+        })
+        
         if (pageNum === 1) {
-          page.records = res.data.records.slice().reverse() // ensure chronological order
+          page.records = sortedRecords
         } else {
           // prepend older messages
-          page.records = res.data.records.slice().reverse().concat(page.records)
+          page.records = sortedRecords.concat(page.records)
         }
         page.total = res.data.total || page.total
         page.pageNum = pageNum

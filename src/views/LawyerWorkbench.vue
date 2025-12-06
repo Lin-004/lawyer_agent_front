@@ -44,6 +44,34 @@
           <li>
             <button
               class="w-full text-left sidebar-link flex items-center px-6 py-3 text-gray-600 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+              :class="{ 'bg-brand-50 text-brand-600 border-r-4 border-brand-600': activeView === 'schedule' }"
+              @click="switchView('schedule')"
+            >
+              <i class="fa-solid fa-clock w-6"></i>
+              <span class="font-medium">预约时间</span>
+            </button>
+          </li>
+          <li>
+            <button
+              class="w-full text-left sidebar-link flex items-center px-6 py-3 text-gray-600 hover:bg-gray-50 hover:text-brand-600 transition-colors justify-between"
+              :class="{ 'bg-brand-50 text-brand-600 border-r-4 border-brand-600': activeView === 'appointments' }"
+              @click="switchView('appointments')"
+            >
+              <div class="flex items-center">
+                <i class="fa-solid fa-calendar-check w-6"></i>
+                <span class="font-medium">预约管理</span>
+              </div>
+              <span
+                v-if="metrics.pendingAppointments > 0"
+                class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full"
+              >
+                {{ metrics.pendingAppointments }}
+              </span>
+            </button>
+          </li>
+          <li>
+            <button
+              class="w-full text-left sidebar-link flex items-center px-6 py-3 text-gray-600 hover:bg-gray-50 hover:text-brand-600 transition-colors"
               :class="{ 'bg-brand-50 text-brand-600 border-r-4 border-brand-600': activeView === 'chat' }"
               @click="switchView('chat')"
             >
@@ -291,6 +319,225 @@
           </div>
 
           <!-- 案件笔记已移除：律师端聊天室不再显示案件笔记 -->
+        </section>
+
+        <!-- Schedule View -->
+        <section v-show="activeView === 'schedule'" class="max-w-6xl mx-auto fade-in space-y-4">
+          <h1 class="text-2xl font-bold text-slate-800">预约时间设置</h1>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">可预约日期</label>
+                <input type="date" v-model="scheduleForm.date" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">开始时间</label>
+                <input type="time" v-model="scheduleForm.startTime" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">结束时间</label>
+                <input type="time" v-model="scheduleForm.endTime" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+              <div class="flex gap-2">
+                <button
+                  class="flex-1 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  :disabled="scheduleSaving"
+                  @click="handleSaveSchedule"
+                >
+                  {{ scheduleSaving ? '保存中...' : scheduleForm.id ? '保存修改' : '新增时间段' }}
+                </button>
+                <button
+                  class="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                  @click="resetScheduleForm"
+                >
+                  重置
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">提示：请确保时间不重叠且结束时间晚于开始时间。</p>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="font-bold text-slate-800">我的可预约时间段</h3>
+              <button class="text-sm text-brand-600 hover:text-brand-700" @click="loadSchedules">刷新</button>
+            </div>
+
+            <div v-if="scheduleLoading" class="text-center py-10 text-gray-400 text-sm">
+              <i class="fa-solid fa-spinner fa-spin mr-2"></i>加载中...
+            </div>
+            <div v-else-if="scheduleList.length === 0" class="text-center py-10 text-gray-500 text-sm">
+              暂无可预约时间段
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="min-w-full text-sm text-left whitespace-nowrap">
+                <thead class="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th class="px-6 py-3 font-medium">日期</th>
+                    <th class="px-6 py-3 font-medium">时间段</th>
+                    <th class="px-6 py-3 font-medium">状态</th>
+                    <th class="px-6 py-3 font-medium text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  <tr v-for="slot in scheduleList" :key="slot.id">
+                    <td class="px-6 py-3 text-gray-900">{{ slot.date || '--' }}</td>
+                    <td class="px-6 py-3 text-gray-700">{{ formatSlotTime(slot) }}</td>
+                    <td class="px-6 py-3">
+                      <span :class="scheduleStatusClass(slot.status)" class="px-2 py-1 rounded text-xs font-medium inline-block">
+                        {{ scheduleStatusText(slot.status) }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-3 text-right space-x-2">
+                      <button
+                        class="text-brand-600 bg-brand-50 px-3 py-1 rounded hover:bg-brand-100 transition"
+                        @click="handleEditSchedule(slot)"
+                      >
+                        编辑
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Appointments Management View -->
+        <section v-show="activeView === 'appointments'" class="max-w-6xl mx-auto fade-in space-y-4">
+          <h1 class="text-2xl font-bold text-slate-800">预约管理</h1>
+
+          <!-- Statistics -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-500 text-sm">待处理预约</p>
+                  <p class="text-3xl font-bold text-slate-800">{{ appointmentsStats.pending }}</p>
+                </div>
+                <i class="fa-solid fa-hourglass-end text-4xl text-yellow-500 opacity-20"></i>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-500 text-sm">已确认预约</p>
+                  <p class="text-3xl font-bold text-slate-800">{{ appointmentsStats.confirmed }}</p>
+                </div>
+                <i class="fa-solid fa-check-circle text-4xl text-green-500 opacity-20"></i>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-500 text-sm">已完成咨询</p>
+                  <p class="text-3xl font-bold text-slate-800">{{ appointmentsStats.completed }}</p>
+                </div>
+                <i class="fa-solid fa-star text-4xl text-blue-500 opacity-20"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Appointments List with Tabs -->
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="flex border-b border-gray-100 overflow-x-auto bg-gray-50">
+              <button
+                v-for="statusOption in appointmentStatuses"
+                :key="statusOption.value"
+                class="px-6 py-4 text-sm font-medium whitespace-nowrap"
+                :class="appointmentsFilter.currentStatus === statusOption.value ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-brand-600'"
+                @click="changeAppointmentStatus(statusOption.value)"
+              >
+                {{ statusOption.label }}
+                <span v-if="getAppointmentCountByStatus(statusOption.value) > 0" class="ml-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">
+                  {{ getAppointmentCountByStatus(statusOption.value) }}
+                </span>
+              </button>
+            </div>
+
+            <div v-if="appointmentsLoading" class="text-center py-10 text-gray-400 text-sm">
+              <i class="fa-solid fa-spinner fa-spin mr-2"></i>加载中...
+            </div>
+            <div v-else-if="filteredAppointments.length === 0" class="text-center py-10 text-gray-500 text-sm">
+              暂无预约记录
+            </div>
+            <div v-else class="divide-y divide-gray-100">
+              <div
+                v-for="appointment in filteredAppointments"
+                :key="appointment.id"
+                class="p-6 hover:bg-gray-50 transition"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <!-- Left: User Info and Appointment Details -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-4 mb-3">
+                      <div
+                        class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0"
+                      >
+                        {{ appointment.userName?.[0] || '用' }}
+                      </div>
+                      <div>
+                        <h3 class="font-bold text-slate-800">{{ appointment.userName }}</h3>
+                        <p class="text-xs text-gray-500">用户ID: {{ appointment.userId }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Appointment Details -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-3 text-sm">
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <p class="text-gray-500 text-xs mb-1">预约日期</p>
+                          <p class="font-medium text-gray-800">{{ appointment.scheduleDate || '--' }}</p>
+                        </div>
+                        <div>
+                          <p class="text-gray-500 text-xs mb-1">预约时段</p>
+                          <p class="font-medium text-gray-800">
+                            {{ appointment.startTime || '--' }} - {{ appointment.endTime || '--' }}
+                          </p>
+                        </div>
+                        <div>
+                          <p class="text-gray-500 text-xs mb-1">预约状态</p>
+                          <span :class="getAppointmentStatusClass(appointment.status)" class="px-2 py-1 rounded text-xs font-medium inline-block">
+                            {{ getAppointmentStatusText(appointment.status) }}
+                          </span>
+                        </div>
+                        <div>
+                          <p class="text-gray-500 text-xs mb-1">预约时间</p>
+                          <p class="text-gray-600 text-xs">{{ formatDateTime(appointment.createTime) }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Right: Action Buttons -->
+                  <div class="flex flex-col gap-2 flex-shrink-0">
+                    <button
+                      v-if="appointment.status === 1"
+                      class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
+                      @click="openAcceptDialog(appointment)"
+                    >
+                      <i class="fa-solid fa-check mr-1"></i> 接受
+                    </button>
+                    <button
+                      v-if="appointment.status === 1"
+                      class="px-4 py-2 bg-red-100 text-red-600 text-sm font-medium rounded-lg hover:bg-red-200 transition"
+                      @click="openRejectDialog(appointment)"
+                    >
+                      <i class="fa-solid fa-times mr-1"></i> 拒绝
+                    </button>
+                    <button
+                      v-if="appointment.status === 2"
+                      class="px-4 py-2 bg-blue-100 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-200 transition"
+                      @click="viewOrder(appointment)"
+                    >
+                      <i class="fa-solid fa-receipt mr-1"></i> 查看订单
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- Orders View -->
@@ -767,6 +1014,121 @@
       </div>
     </main>
   </div>
+
+  <!-- Accept Appointment Dialog -->
+  <div
+    v-if="appointmentDialogs.acceptVisible"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+  >
+    <div class="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center">
+        <i class="fa-solid fa-check-circle text-green-600 text-2xl mr-3"></i>
+        <h3 class="text-lg font-bold text-gray-800">确认接受预约</h3>
+      </div>
+      <div class="px-6 py-4 space-y-4">
+        <p class="text-gray-600 text-sm">
+          您即将确认 <strong>{{ appointmentDialogs.selectedAppointment?.userName }}</strong> 的预约请求。
+        </p>
+        <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+          <div>
+            <span class="text-gray-500">预约日期：</span>
+            <span class="font-medium">{{ appointmentDialogs.selectedAppointment?.scheduleDate }}</span>
+          </div>
+          <div>
+            <span class="text-gray-500">预约时段：</span>
+            <span class="font-medium">
+              {{ appointmentDialogs.selectedAppointment?.startTime }} - {{ appointmentDialogs.selectedAppointment?.endTime }}
+            </span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-2">
+            自定义咨询费（可选）
+            <span class="text-xs text-gray-400">不填则使用系统费率</span>
+          </label>
+          <div class="flex items-center">
+            <span class="text-gray-500 text-lg mr-2">¥</span>
+            <input
+              v-model="appointmentDialogs.customAmount"
+              type="number"
+              placeholder="请输入费用金额"
+              class="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-100 flex gap-3">
+        <button
+          class="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+          @click="closeAcceptDialog"
+        >
+          取消
+        </button>
+        <button
+          class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+          @click="submitAcceptAppointment"
+          :disabled="appointmentDialogs.submitting"
+        >
+          {{ appointmentDialogs.submitting ? '处理中...' : '确认接受' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject Appointment Dialog -->
+  <div
+    v-if="appointmentDialogs.rejectVisible"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+  >
+    <div class="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center">
+        <i class="fa-solid fa-times-circle text-red-600 text-2xl mr-3"></i>
+        <h3 class="text-lg font-bold text-gray-800">拒绝预约</h3>
+      </div>
+      <div class="px-6 py-4 space-y-4">
+        <p class="text-gray-600 text-sm">
+          您即将拒绝 <strong>{{ appointmentDialogs.selectedAppointment?.userName }}</strong> 的预约请求。
+        </p>
+        <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+          <div>
+            <span class="text-gray-500">预约日期：</span>
+            <span class="font-medium">{{ appointmentDialogs.selectedAppointment?.scheduleDate }}</span>
+          </div>
+          <div>
+            <span class="text-gray-500">预约时段：</span>
+            <span class="font-medium">
+              {{ appointmentDialogs.selectedAppointment?.startTime }} - {{ appointmentDialogs.selectedAppointment?.endTime }}
+            </span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-2">拒绝原因（可选）</label>
+          <textarea
+            v-model="appointmentDialogs.rejectReason"
+            placeholder="请简要说明拒绝原因（用户将看到此信息）"
+            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm"
+            rows="3"
+          ></textarea>
+          <p class="text-xs text-gray-400 mt-1">例如：时间冲突、专业领域不符等</p>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-100 flex gap-3">
+        <button
+          class="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+          @click="closeRejectDialog"
+        >
+          取消
+        </button>
+        <button
+          class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+          @click="submitRejectAppointment"
+          :disabled="appointmentDialogs.submitting"
+        >
+          {{ appointmentDialogs.submitting ? '处理中...' : '确认拒绝' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -777,6 +1139,7 @@ import LawyerChatPanel from '@/components/LawyerChatPanel.vue'
 import { getLawyerOrders } from '@/api/order'
 import { getLawyerAppointmentList, acceptAppointment, rejectAppointment } from '@/api/appointment'
 import { uploadLawyerLicense, submitLawyerLicense } from '@/api/lawyer'
+import { addSchedule, getScheduleList, updateSchedule } from '@/api/schedule'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -842,10 +1205,58 @@ const todaySchedule = ref([])
 const lawyerOrders = ref([])
 const ordersLoading = ref(false)
 const orderStatus = ref(undefined)
+const scheduleForm = reactive({
+  id: null,
+  date: '',
+  startTime: '',
+  endTime: ''
+})
+const scheduleList = ref([])
+const scheduleLoading = ref(false)
+const scheduleSaving = ref(false)
+
+// Appointments state
+const appointmentStatuses = [
+  { value: 1, label: '待确认' },
+  { value: 2, label: '已确认' },
+  { value: 3, label: '已完成' },
+  { value: 4, label: '已取消' },
+  { value: 5, label: '已拒绝' }
+]
+
+const appointmentsFilter = reactive({
+  currentStatus: 1
+})
+
+const appointmentsList = ref([])
+const appointmentsLoading = ref(false)
+
+const appointmentsStats = reactive({
+  pending: 0,
+  confirmed: 0,
+  completed: 0
+})
+
+const appointmentDialogs = reactive({
+  acceptVisible: false,
+  rejectVisible: false,
+  selectedAppointment: null,
+  customAmount: '',
+  rejectReason: '',
+  submitting: false
+})
+
+const filteredAppointments = computed(() => {
+  return appointmentsList.value.filter(
+    (item) => item.status === appointmentsFilter.currentStatus
+  )
+})
 
 const currentTitle = computed(() => {
   if (activeView.value === 'orders') return '案件订单'
   if (activeView.value === 'chat') return '咨询会话'
+  if (activeView.value === 'schedule') return '预约时间'
+  if (activeView.value === 'appointments') return '预约管理'
   return '工作台'
 })
 
@@ -861,6 +1272,12 @@ const switchView = (view) => {
   }
   if (view === 'dashboard') {
     loadAppointments()
+  }
+  if (view === 'schedule') {
+    loadSchedules()
+  }
+  if (view === 'appointments') {
+    loadAllAppointments()
   }
   if (window.innerWidth < 768) {
     sidebarOpen.value = false
@@ -885,6 +1302,49 @@ const statusClass = (status) => {
     3: 'bg-blue-100 text-blue-700'
   }
   return map[status] || 'bg-gray-100 text-gray-700'
+}
+
+const timeObjToString = (timeObj) => {
+  if (!timeObj) return '--'
+  // 支持字符串格式 "HH:mm:ss" 或 "HH:mm"
+  if (typeof timeObj === 'string') {
+    return timeObj.substring(0, 5) // "HH:mm:ss" → "HH:mm"
+  }
+  // 支持对象格式 { hour, minute, second, nano }
+  if (typeof timeObj.hour === 'undefined') return '--'
+  const pad = (n) => String(n ?? 0).padStart(2, '0')
+  return `${pad(timeObj.hour)}:${pad(timeObj.minute)}`
+}
+
+const toTimeDTO = (value) => {
+  if (!value) return null
+  const [h, m] = value.split(':')
+  const hour = Number(h)
+  const minute = Number(m)
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null
+  return { hour, minute, second: 0, nano: 0 }
+}
+
+const formatSlotTime = (slot) => {
+  return `${timeObjToString(slot.startTime)} - ${timeObjToString(slot.endTime)}`
+}
+
+const scheduleStatusText = (status) => {
+  const map = {
+    1: '可预约',
+    2: '已预约',
+    3: '已关闭'
+  }
+  return map[status] || '可预约'
+}
+
+const scheduleStatusClass = (status) => {
+  const map = {
+    0: 'bg-green-50 text-green-700',
+    1: 'bg-amber-50 text-amber-700',
+    2: 'bg-gray-100 text-gray-600'
+  }
+  return map[status] || 'bg-green-50 text-green-700'
 }
 
 const changeOrderStatus = (status) => {
@@ -958,6 +1418,92 @@ const loadAppointments = async () => {
   }
 }
 
+const loadSchedules = async () => {
+  scheduleLoading.value = true
+  try {
+    const lawyerId = userStore.userInfo?.id
+    if (!lawyerId) {
+      scheduleList.value = []
+      return
+    }
+    const res = await getScheduleList({ lawyerId })
+    if (res.success && Array.isArray(res.data)) {
+      scheduleList.value = res.data
+    } else {
+      scheduleList.value = []
+    }
+  } catch (e) {
+    console.error('加载可预约时间段失败', e)
+  } finally {
+    scheduleLoading.value = false
+  }
+}
+
+const resetScheduleForm = () => {
+  scheduleForm.id = null
+  scheduleForm.date = ''
+  scheduleForm.startTime = ''
+  scheduleForm.endTime = ''
+}
+
+const handleEditSchedule = (slot) => {
+  scheduleForm.id = slot.id
+  scheduleForm.date = slot.date
+  scheduleForm.startTime = timeObjToString(slot.startTime)
+  scheduleForm.endTime = timeObjToString(slot.endTime)
+  activeView.value = 'schedule'
+}
+
+const handleSaveSchedule = async () => {
+  if (!scheduleForm.date || !scheduleForm.startTime || !scheduleForm.endTime) {
+    alert('请填写完整的日期和时间段')
+    return
+  }
+
+  const start = toTimeDTO(scheduleForm.startTime)
+  const end = toTimeDTO(scheduleForm.endTime)
+  if (!start || !end) {
+    alert('时间格式不正确，请使用 HH:mm')
+    return
+  }
+
+  if (start.hour > end.hour || (start.hour === end.hour && start.minute >= end.minute)) {
+    alert('结束时间必须晚于开始时间')
+    return
+  }
+
+  const lawyerId = userStore.userInfo?.id
+  if (!lawyerId) {
+    alert('未获取到律师信息，请重新登录')
+    return
+  }
+
+  // 后端期望 startTime/endTime 为 "HH:mm" 格式的字符串，而非对象
+  const payload = {
+    lawyerId,
+    date: scheduleForm.date,
+    startTime: scheduleForm.startTime,
+    endTime: scheduleForm.endTime
+  }
+
+  scheduleSaving.value = true
+  try {
+    if (scheduleForm.id) {
+      payload.id = scheduleForm.id
+      await updateSchedule(payload)
+    } else {
+      await addSchedule(payload)
+    }
+    await loadSchedules()
+    resetScheduleForm()
+  } catch (e) {
+    console.error('保存预约时间段失败', e)
+    alert('保存失败：' + (e.response?.data?.message || e.message || '请稍后重试'))
+  } finally {
+    scheduleSaving.value = false
+  }
+}
+
 const handleAcceptAppointment = async (item) => {
   try {
     await acceptAppointment({
@@ -981,6 +1527,159 @@ const handleRejectAppointment = async (item) => {
   } catch (e) {
     console.error('拒绝预约失败', e)
   }
+}
+
+// New appointment management functions
+const loadAllAppointments = async () => {
+  appointmentsLoading.value = true
+  try {
+    const lawyerId = userStore.userInfo?.id
+    if (!lawyerId) {
+      appointmentsList.value = []
+      appointmentsStats.pending = 0
+      appointmentsStats.confirmed = 0
+      appointmentsStats.completed = 0
+      return
+    }
+
+    // Load all appointments (all statuses)
+    const res = await getLawyerAppointmentList({ lawyerId })
+    if (res.success && Array.isArray(res.data)) {
+      appointmentsList.value = res.data
+      // Calculate stats
+      appointmentsStats.pending = res.data.filter((a) => a.status === 1).length
+      appointmentsStats.confirmed = res.data.filter((a) => a.status === 2).length
+      appointmentsStats.completed = res.data.filter((a) => a.status === 3).length
+    } else {
+      appointmentsList.value = []
+      appointmentsStats.pending = 0
+      appointmentsStats.confirmed = 0
+      appointmentsStats.completed = 0
+    }
+  } catch (e) {
+    console.error('加载预约记录失败', e)
+    appointmentsList.value = []
+  } finally {
+    appointmentsLoading.value = false
+  }
+}
+
+const changeAppointmentStatus = (status) => {
+  appointmentsFilter.currentStatus = status
+}
+
+const getAppointmentCountByStatus = (status) => {
+  return appointmentsList.value.filter((a) => a.status === status).length
+}
+
+const getAppointmentStatusText = (status) => {
+  const map = {
+    1: '待确认',
+    2: '已确认',
+    3: '已完成',
+    4: '已取消',
+    5: '已拒绝'
+  }
+  return map[status] || '未知'
+}
+
+const getAppointmentStatusClass = (status) => {
+  const map = {
+    1: 'bg-yellow-50 text-yellow-700',
+    2: 'bg-green-50 text-green-700',
+    3: 'bg-blue-50 text-blue-700',
+    4: 'bg-gray-100 text-gray-600',
+    5: 'bg-red-50 text-red-600'
+  }
+  return map[status] || 'bg-gray-50 text-gray-600'
+}
+
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '--'
+  try {
+    return new Date(dateTime).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return dateTime
+  }
+}
+
+const openAcceptDialog = (appointment) => {
+  appointmentDialogs.selectedAppointment = appointment
+  appointmentDialogs.customAmount = ''
+  appointmentDialogs.acceptVisible = true
+}
+
+const closeAcceptDialog = () => {
+  appointmentDialogs.acceptVisible = false
+  appointmentDialogs.selectedAppointment = null
+  appointmentDialogs.customAmount = ''
+}
+
+const submitAcceptAppointment = async () => {
+  const appointment = appointmentDialogs.selectedAppointment
+  if (!appointment) return
+
+  appointmentDialogs.submitting = true
+  try {
+    await acceptAppointment({
+      appointmentId: appointment.id,
+      customAmount: appointmentDialogs.customAmount || undefined
+    })
+    // Refresh both appointments and orders
+    await loadAllAppointments()
+    await loadOrders()
+    closeAcceptDialog()
+    alert('预约已接受，订单已生成')
+  } catch (e) {
+    console.error('接受预约失败', e)
+    alert('接受预约失败: ' + (e.response?.data?.message || e.message || '请稍后重试'))
+  } finally {
+    appointmentDialogs.submitting = false
+  }
+}
+
+const openRejectDialog = (appointment) => {
+  appointmentDialogs.selectedAppointment = appointment
+  appointmentDialogs.rejectReason = ''
+  appointmentDialogs.rejectVisible = true
+}
+
+const closeRejectDialog = () => {
+  appointmentDialogs.rejectVisible = false
+  appointmentDialogs.selectedAppointment = null
+  appointmentDialogs.rejectReason = ''
+}
+
+const submitRejectAppointment = async () => {
+  const appointment = appointmentDialogs.selectedAppointment
+  if (!appointment) return
+
+  appointmentDialogs.submitting = true
+  try {
+    await rejectAppointment({
+      appointmentId: appointment.id,
+      reason: appointmentDialogs.rejectReason || '无法接待此预约'
+    })
+    await loadAllAppointments()
+    closeRejectDialog()
+    alert('预约已拒绝')
+  } catch (e) {
+    console.error('拒绝预约失败', e)
+    alert('拒绝预约失败: ' + (e.response?.data?.message || e.message || '请稍后重试'))
+  } finally {
+    appointmentDialogs.submitting = false
+  }
+}
+
+const viewOrder = (appointment) => {
+  // Navigate to orders view
+  switchView('orders')
 }
 
 const goToChatFromOrder = (order) => {
