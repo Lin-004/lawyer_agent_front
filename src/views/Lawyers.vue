@@ -90,10 +90,23 @@
               </div>
 
               <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-600 mb-2">执业地区</label>
+                <select 
+                  v-model="filters.province" 
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                >
+                  <option value="">不限</option>
+                  <option v-for="prov in provinces" :key="prov" :value="prov">
+                    {{ prov }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-600 mb-2">执业年限</label>
                 <select 
                   v-model="filters.years" 
-                  class="w-full border-gray-200 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                 >
                   <option value="">不限</option>
                   <option value="1-3">1-3年</option>
@@ -314,8 +327,20 @@ const isLoggedIn = computed(() => userStore.isLoggedIn)
 const filters = ref({
   specialty: [],
   years: '',
-  maxPrice: 2000
+  maxPrice: 2000,
+  province: ''
 })
+
+// 省份数据
+const provinces = ref([
+  '北京市', '天津市', '河北省', '山西省', '内蒙古自治区',
+  '辽宁省', '吉林省', '黑龙江省', '上海市', '江苏省',
+  '浙江省', '安徽省', '福建省', '江西省', '山东省',
+  '河南省', '湖北省', '湖南省', '广东省', '广西壮族自治区',
+  '海南省', '重庆市', '四川省', '贵州省', '云南省',
+  '西藏自治区', '陕西省', '甘肃省', '青海省', '宁夏回族自治区',
+  '新疆维吾尔自治区'
+])
 
 const appointmentModal = ref({
   show: false,
@@ -335,6 +360,11 @@ const sortOptions = [
 
 const displayedLawyers = computed(() => {
   let list = [...rawLawyers.value]
+
+  // 省份筛选
+  if (filters.value.province) {
+    list = list.filter((item) => item.province === filters.value.province)
+  }
 
   if (filters.value.specialty.length) {
     list = list.filter((item) => {
@@ -579,4 +609,3 @@ onMounted(() => {
   loadLawyers()
 })
 </script>
-
