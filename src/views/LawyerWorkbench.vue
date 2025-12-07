@@ -91,14 +91,6 @@
               <i class="fa-solid fa-circle-check text-green-500 ml-auto text-sm"></i>
             </button>
           </li>
-          <li>
-            <div
-              class="sidebar-link flex items-center px-6 py-3 text-gray-600 hover:bg-gray-50 hover:text-brand-600 transition-colors"
-            >
-              <i class="fa-solid fa-wallet w-6"></i>
-              <span class="font-medium">我的收益</span>
-            </div>
-          </li>
         </ul>
       </nav>
 
@@ -304,7 +296,7 @@
                   <i class="fa-solid fa-arrow-left"></i>
                 </button>
                 <h3 class="font-bold text-gray-800">当前咨询会话</h3>
-                <span class="ml-3 text-xs bg-green-100 text-green-600 px-2 py-1 rounded">服务中</span>
+                <span class="ml-3 text-xs bg-green-100 text-green-600 px-2 py-1 rounded">已支付</span>
               </div>
               <div class="flex space-x-4 text-gray-400">
                 <button title="结束服务" class="hover:text-red-500"><i class="fa-solid fa-power-off"></i></button>
@@ -557,7 +549,7 @@
                 :class="orderStatus === 1 ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-brand-600'"
                 @click="changeOrderStatus(1)"
               >
-                服务中
+                已支付
               </button>
               <button
                 class="px-6 py-4 text-sm font-medium"
@@ -1287,9 +1279,8 @@ const switchView = (view) => {
 const statusText = (status) => {
   const map = {
     0: '未支付',
-    1: '服务中',
-    2: '已取消',
-    3: '已完成'
+    1: '已支付',
+    2: '已取消'
   }
   return map[status] || '未知'
 }
@@ -1547,14 +1538,24 @@ const loadAllAppointments = async () => {
     if (res.success && Array.isArray(res.data)) {
       appointmentsList.value = res.data
       // Calculate stats
-      appointmentsStats.pending = res.data.filter((a) => a.status === 1).length
-      appointmentsStats.confirmed = res.data.filter((a) => a.status === 2).length
-      appointmentsStats.completed = res.data.filter((a) => a.status === 3).length
+      const pendingCount = res.data.filter((a) => a.status === 1).length
+      const confirmedCount = res.data.filter((a) => a.status === 2).length
+      const completedCount = res.data.filter((a) => a.status === 3).length
+
+      appointmentsStats.pending = pendingCount
+      appointmentsStats.confirmed = confirmedCount
+      appointmentsStats.completed = completedCount
+
+      // 同步侧边栏红点与待办数，确保待确认清空后红点消失
+      metrics.pendingAppointments = pendingCount
+      metrics.pendingTasks = pendingCount
     } else {
       appointmentsList.value = []
       appointmentsStats.pending = 0
       appointmentsStats.confirmed = 0
       appointmentsStats.completed = 0
+      metrics.pendingAppointments = 0
+      metrics.pendingTasks = 0
     }
   } catch (e) {
     console.error('加载预约记录失败', e)

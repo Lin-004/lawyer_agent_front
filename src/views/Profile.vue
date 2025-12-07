@@ -129,7 +129,7 @@
                       : 'text-gray-600 hover:bg-gray-50'
                   ]"
                 >
-                  <i class="fa-regular fa-heart w-6"></i> 历史订单
+                  <i class="fa-regular fa-heart w-6"></i> 订单管理
                 </button>
                 <button 
                   @click="switchTab('settings')"
@@ -305,7 +305,7 @@
             <!-- Orders List -->
             <div v-if="activeTab === 'orders'" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-lg text-gray-800">历史订单</h3>
+                <h3 class="font-bold text-lg text-gray-800">订单管理</h3>
                 <button class="text-sm text-gray-500 hover:text-brand-600" @click="loadOrders">刷新</button>
               </div>
               <div class="flex flex-wrap gap-2 mb-4">
@@ -346,13 +346,22 @@
                       服务律师：{{ order.lawyerName }}
                     </div>
                   </div>
-                  <div class="text-right">
+                  <div class="flex flex-col items-end gap-2">
                     <div class="text-lg font-bold text-gray-900">¥{{ formatAmount(order.amount) }}</div>
-                    <div
-                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1"
-                      :class="orderStatusClass(order.status)"
-                    >
-                      {{ getStatusText(order.status) }}
+                    <div class="flex items-center gap-2">
+                      <div
+                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                        :class="orderStatusClass(order.status)"
+                      >
+                        {{ getStatusText(order.status) }}
+                      </div>
+                      <button
+                        v-if="Number(order.status) === 0"
+                        @click="openPaymentDialog(order)"
+                        class="px-3 py-1 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition"
+                      >
+                        立即支付
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -492,6 +501,53 @@
         </div>
       </div>
     </div>
+
+    <!-- Payment Confirmation Dialog -->
+    <div
+      v-if="paymentDialog.visible"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closePaymentDialog"
+    >
+      <div class="bg-white rounded-xl shadow-lg max-w-sm w-full mx-4">
+        <div class="p-6 border-b border-gray-100">
+          <h3 class="text-lg font-bold text-gray-900">确认支付</h3>
+        </div>
+        <div class="p-6 space-y-4">
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-center mb-3">
+              <span class="text-gray-600">订单号</span>
+              <span class="font-medium text-gray-900">#{{ paymentDialog.selectedOrder?.orderId }}</span>
+            </div>
+            <div class="flex justify-between items-center mb-3">
+              <span class="text-gray-600">服务</span>
+              <span class="font-medium text-gray-900">{{ paymentDialog.selectedOrder?.description || '图文咨询' }}</span>
+            </div>
+            <div class="flex justify-between items-center pt-3 border-t border-gray-200">
+              <span class="text-gray-600 font-medium">支付金额</span>
+              <span class="text-2xl font-bold text-brand-600">¥{{ formatAmount(paymentDialog.selectedOrder?.amount) }}</span>
+            </div>
+          </div>
+          <p class="text-sm text-gray-500">确认支付后，将进入支付页面，请完成支付操作。</p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            @click="closePaymentDialog"
+            :disabled="paymentDialog.confirming"
+            class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition disabled:opacity-50 font-medium"
+          >
+            取消
+          </button>
+          <button
+            @click="confirmPayment"
+            :disabled="paymentDialog.confirming"
+            class="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition disabled:opacity-50 font-medium"
+          >
+            {{ paymentDialog.confirming ? '支付中...' : '确认支付' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <Footer />
   </div>
 </template>
@@ -502,7 +558,7 @@ import { useRouter } from 'vue-router'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import { useUserStore } from '@/stores/user'
-import { getUserOrders } from '@/api/order'
+import { getUserOrders, payOrder } from '@/api/order'
 import { getAppointmentList } from '@/api/appointment'
 import { getUserInfo, updateProfile } from '@/api/user'
 
@@ -514,9 +570,8 @@ const orders = ref([])
 const orderFilterOptions = [
   { label: '全部订单', value: undefined },
   { label: '待支付', value: 0 },
-  { label: '服务中', value: 1 },
-  { label: '已取消', value: 2 },
-  { label: '已完成', value: 3 }
+  { label: '已支付', value: 1 },
+  { label: '已取消', value: 2 }
 ]
 const currentOrderFilter = ref(orderFilterOptions[0].value)
 const orderPagination = reactive({
@@ -533,6 +588,11 @@ const currentUserInfo = ref({})
 const isEditingNickname = ref(false)
 const editNickname = ref('')
 const savingNickname = ref(false)
+const paymentDialog = reactive({
+  visible: false,
+  selectedOrder: null,
+  confirming: false
+})
 
 const userName = computed(() => userStore.userInfo?.nickname || '王小明')
 const userAvatar = computed(() => 
@@ -638,9 +698,8 @@ const changeOrderFilter = (status) => {
 const getStatusText = (status) => {
   const statusMap = {
     0: '未支付',
-    1: '服务中',
-    2: '已取消',
-    3: '已完成'
+    1: '已支付',
+    2: '已取消'
   }
   return statusMap[status] || '未知'
 }
@@ -759,6 +818,46 @@ const getRoleText = (role) => {
 const handleLogout = () => {
   userStore.logout()
   router.replace({ name: 'Auth' })
+}
+
+const openPaymentDialog = (order) => {
+  paymentDialog.selectedOrder = order
+  paymentDialog.visible = true
+  paymentDialog.confirming = false
+}
+
+const closePaymentDialog = () => {
+  paymentDialog.visible = false
+  paymentDialog.selectedOrder = null
+  paymentDialog.confirming = false
+}
+
+const confirmPayment = async () => {
+  if (paymentDialog.confirming) return
+  if (!paymentDialog.selectedOrder) return
+
+  const orderId = paymentDialog.selectedOrder.orderId || paymentDialog.selectedOrder.id
+  if (!orderId) {
+    alert('未找到订单编号，无法支付')
+    return
+  }
+
+  paymentDialog.confirming = true
+  try {
+    const res = await payOrder(orderId)
+    if (res?.success || res?.code === '00000') {
+      alert('支付成功！订单已更新，请稍候...')
+      closePaymentDialog()
+      await loadOrders()
+    } else {
+      alert(res?.message || '支付失败，请稍后重试')
+    }
+  } catch (error) {
+    console.error('支付失败:', error)
+    alert('支付失败，请稍后重试')
+  } finally {
+    paymentDialog.confirming = false
+  }
 }
 
 watch(

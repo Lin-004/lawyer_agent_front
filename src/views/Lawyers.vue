@@ -479,6 +479,8 @@ const handleAppointment = async (lawyer) => {
     router.push({ name: 'Auth' })
     return
   }
+
+  const targetLawyerId = lawyer.userId || lawyer.id
   
   appointmentModal.value.lawyer = lawyer
   appointmentModal.value.schedules = []
@@ -489,7 +491,7 @@ const handleAppointment = async (lawyer) => {
   // 加载律师的可预约时间段
   appointmentModal.value.loading = true
   try {
-    const res = await getLawyerSchedules(lawyer.id)
+    const res = await getLawyerSchedules(targetLawyerId)
     if (res.success && Array.isArray(res.data)) {
       // 过滤可预约的时间段（status === 1）
       appointmentModal.value.schedules = res.data.filter(s => s.status === 1)
@@ -556,7 +558,8 @@ const submitAppointment = async () => {
   try {
     const res = await createAppointment({
       userId: userStore.userInfo?.id,
-      lawyerId: appointmentModal.value.lawyer.id,
+      // 后端期望的律师账号ID：列表数据中的 userId，若缺失再回退展示用的 id
+      lawyerId: appointmentModal.value.lawyer.userId || appointmentModal.value.lawyer.id,
       scheduleId: appointmentModal.value.selectedScheduleId,
       status: 1,
       remarks: appointmentModal.value.remarks

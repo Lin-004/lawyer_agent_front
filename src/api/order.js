@@ -27,3 +27,11 @@ export function cancelOrder(orderId) {
   })
 }
 
+// 支付订单
+export function payOrder(orderId) {
+  return request({
+    url: `/orders/pay/${orderId}`,
+    method: 'post'
+  })
+}
+
