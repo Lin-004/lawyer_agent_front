@@ -48,6 +48,15 @@ export function uploadLawyerLicense(file) {
   })
 }
 
+// 获取律师评价列表
+export function getLawyerEvaluations(lawyerId, params = {}) {
+  return request({
+    url: `/evaluation/list/${lawyerId}`,
+    method: 'get',
+    params
+  })
+}
+
 // 提交律师资质认证
 export function submitLawyerLicense(data) {
   return request({

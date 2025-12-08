@@ -177,6 +177,7 @@
                 :lawyer="lawyer"
                 @consult="handleConsult"
                 @appointment="handleAppointment"
+                @viewEvaluations="handleViewEvaluations"
               />
             </div>
             
@@ -291,6 +292,61 @@
       </div>
     </teleport>
 
+    <!-- Evaluations Modal -->
+    <teleport to="body" v-if="evaluationsModal.show">
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+          <!-- Modal Header -->
+          <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-900">{{ evaluationsModal.lawyer?.name }} 的评价（{{ evaluationsModal.total }}条）</h3>
+            <button @click="closeEvaluationsModal" class="text-gray-400 hover:text-gray-600">
+              <i class="fa-solid fa-times text-xl"></i>
+            </button>
+          </div>
+
+          <!-- Modal Content -->
+          <div class="p-6">
+            <div v-if="evaluationsModal.loading" class="text-center py-8">
+              <i class="fa-solid fa-spinner fa-spin text-3xl text-gray-400"></i>
+              <p class="text-gray-500 mt-4">加载中...</p>
+            </div>
+            <div v-else-if="evaluationsModal.evaluations.length === 0" class="text-center py-8 text-gray-500">
+              暂无评价
+            </div>
+            <div v-else class="space-y-4">
+              <div 
+                v-for="(evaluation, index) in evaluationsModal.evaluations"
+                :key="index"
+                class="pb-4 border-b border-gray-100 last:border-0"
+              >
+                <!-- Evaluation Header -->
+                <div class="flex justify-between items-start mb-2">
+                  <div>
+                    <div class="font-medium text-gray-900">{{ evaluation.userNickname || '用户' }}</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ formatDateTime(evaluation.createTime) }}</div>
+                  </div>
+                  <div class="flex gap-0.5">
+                    <i 
+                      v-for="i in 5"
+                      :key="i"
+                      :class="[
+                        'fa-star text-sm',
+                        i <= evaluation.score ? 'fa-solid text-yellow-400' : 'fa-regular text-gray-300'
+                      ]"
+                    ></i>
+                  </div>
+                </div>
+                <!-- Evaluation Comment -->
+                <p class="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                  {{ evaluation.comment || '(暂无评价内容)' }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
     <Footer />
   </div>
 </template>
@@ -302,7 +358,7 @@ import { useUserStore } from '@/stores/user'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import LawyerCard from '@/components/LawyerCard.vue'
-import { getLawyerList, getSpecialties } from '@/api/lawyer'
+import { getLawyerList, getSpecialties, getLawyerEvaluations } from '@/api/lawyer'
 import { createAppointment, getLawyerSchedules } from '@/api/appointment'
 
 const router = useRouter()
@@ -350,6 +406,16 @@ const appointmentModal = ref({
   remarks: '',
   loading: false,
   submitting: false
+})
+
+const evaluationsModal = ref({
+  show: false,
+  lawyer: null,
+  evaluations: [],
+  loading: false,
+  page: 1,
+  size: 10,
+  total: 0
 })
 
 const sortOptions = [
@@ -470,7 +536,7 @@ const applyFilters = () => {
 }
 
 const handleConsult = (lawyer) => {
-  router.push({ name: 'Chat', query: { lawyerId: lawyer.id } })
+  router.push({ name: 'Chat', query: { lawyerId: lawyer.userId || lawyer.id } })
 }
 
 const handleAppointment = async (lawyer) => {
@@ -576,6 +642,62 @@ const submitAppointment = async () => {
     alert('提交预约失败，请稍后重试')
   } finally {
     appointmentModal.value.submitting = false
+  }
+}
+
+const handleViewEvaluations = async (lawyer) => {
+  evaluationsModal.value.lawyer = lawyer
+  evaluationsModal.value.evaluations = []
+  evaluationsModal.value.page = 1
+  evaluationsModal.value.total = 0
+  evaluationsModal.value.show = true
+  
+  await loadEvaluations(lawyer)
+}
+
+const loadEvaluations = async (lawyer) => {
+  if (!lawyer) return
+  
+  evaluationsModal.value.loading = true
+  try {
+    const lawyerId = lawyer.userId || lawyer.id
+    const res = await getLawyerEvaluations(lawyerId, {
+      page: evaluationsModal.value.page,
+      size: evaluationsModal.value.size
+    })
+    
+    const pageData = res?.data || res
+    const records = pageData?.records || []
+    evaluationsModal.value.evaluations = Array.isArray(records) ? records : []
+    evaluationsModal.value.total = Number(pageData?.total) || 0
+  } catch (error) {
+    console.error('加载律师评价失败:', error)
+    alert('加载评价失败，请稍后重试')
+  } finally {
+    evaluationsModal.value.loading = false
+  }
+}
+
+const closeEvaluationsModal = () => {
+  evaluationsModal.value.show = false
+  evaluationsModal.value.lawyer = null
+  evaluationsModal.value.evaluations = []
+  evaluationsModal.value.loading = false
+}
+
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '--'
+  try {
+    const date = new Date(dateTime)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return dateTime
   }
 }
 

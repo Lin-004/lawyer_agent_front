@@ -71,6 +71,12 @@
         >
           预约咨询
         </button>
+        <button 
+          @click="handleViewEvaluations"
+          class="flex-1 bg-white border border-gray-200 hover:border-blue-500 hover:text-blue-600 text-gray-700 py-2 rounded-lg transition font-medium"
+        >
+          查看评价
+        </button>
       </div>
     </div>
   </div>
@@ -86,7 +92,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['consult', 'appointment'])
+const emit = defineEmits(['consult', 'appointment', 'viewEvaluations'])
 
 const displaySpecialties = computed(() => {
   if (Array.isArray(props.lawyer.specialty)) {
@@ -104,6 +110,10 @@ const displaySpecialties = computed(() => {
 
 const handleAppointment = () => {
   emit('appointment', props.lawyer)
+}
+
+const handleViewEvaluations = () => {
+  emit('viewEvaluations', props.lawyer)
 }
 </script>
 

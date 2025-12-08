@@ -172,7 +172,7 @@
                       <span class="text-xs font-normal text-gray-500">| {{ activeConsultation?.category || '图文咨询' }}</span>
                     </div>
                     <div class="text-sm text-brand-600 mt-1">
-                      <i class="fa-solid fa-reply mr-1"></i> 律师刚刚回复了您
+                      <i class="fa-solid fa-reply mr-1"></i> 律师接受了咨询
                     </div>
                   </div>
                 </div>
@@ -362,6 +362,20 @@
                       >
                         立即支付
                       </button>
+                      <button
+                        v-if="Number(order.status) === 1 && !order.hasEvaluation"
+                        @click="openEvaluationDialog(order)"
+                        class="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      >
+                        评价
+                      </button>
+                      <button
+                        v-if="Number(order.status) === 1 && order.hasEvaluation"
+                        @click="viewEvaluation(order)"
+                        class="px-3 py-1 text-sm text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition"
+                      >
+                        查看评价
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -548,6 +562,151 @@
       </div>
     </div>
 
+    <!-- Evaluation Dialog -->
+    <div
+      v-if="evaluationDialog.visible"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeEvaluationDialog"
+    >
+      <div class="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
+        <div class="p-6 border-b border-gray-100">
+          <h3 class="text-lg font-bold text-gray-900">评价订单</h3>
+        </div>
+        <div class="p-6 space-y-4">
+          <!-- Order Info -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="text-sm text-gray-600 mb-1">订单号</div>
+            <div class="font-medium text-gray-900">#{{ evaluationDialog.selectedOrder?.orderId }}</div>
+          </div>
+
+          <!-- Star Rating -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">评分</label>
+            <div class="flex gap-2">
+              <button
+                v-for="i in 5"
+                :key="i"
+                @click="evaluationDialog.score = i"
+                class="transition-transform hover:scale-110"
+              >
+                <i
+                  :class="[
+                    'fa-star text-2xl',
+                    i <= evaluationDialog.score ? 'fa-solid text-yellow-400' : 'fa-regular text-gray-300'
+                  ]"
+                ></i>
+              </button>
+            </div>
+            <div v-if="evaluationDialog.score > 0" class="text-sm text-gray-500 mt-1">
+              {{ getScoreLabel(evaluationDialog.score) }}
+            </div>
+          </div>
+
+          <!-- Comment -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">评价内容（可选）</label>
+            <textarea
+              v-model="evaluationDialog.comment"
+              placeholder="请输入您的评价意见..."
+              rows="4"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+            ></textarea>
+            <div class="text-xs text-gray-500 mt-1">{{ evaluationDialog.comment.length }}/500</div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            @click="closeEvaluationDialog"
+            :disabled="evaluationDialog.submitting"
+            class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition disabled:opacity-50 font-medium"
+          >
+            取消
+          </button>
+          <button
+            @click="submitEvaluation"
+            :disabled="evaluationDialog.score === 0 || evaluationDialog.submitting"
+            class="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition disabled:opacity-50 font-medium"
+          >
+            {{ evaluationDialog.submitting ? '提交中...' : '提交评价' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Evaluation Dialog -->
+    <div
+      v-if="viewEvaluationDialog.visible"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeViewEvaluationDialog"
+    >
+      <div class="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
+        <div class="p-6 border-b border-gray-100">
+          <h3 class="text-lg font-bold text-gray-900">订单评价</h3>
+        </div>
+        <div v-if="viewEvaluationDialog.loading" class="p-6 text-center">
+          <i class="fa-solid fa-spinner fa-spin text-2xl text-gray-400"></i>
+          <p class="text-gray-500 mt-2">加载中...</p>
+        </div>
+        <div v-else-if="viewEvaluationDialog.evaluation" class="p-6 space-y-4">
+          <!-- Order ID -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="text-sm text-gray-600 mb-1">订单号</div>
+            <div class="font-medium text-gray-900">#{{ viewEvaluationDialog.selectedOrder?.orderId }}</div>
+          </div>
+
+          <!-- Star Rating Display -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">评分</label>
+            <div class="flex gap-1">
+              <i
+                v-for="i in 5"
+                :key="i"
+                :class="[
+                  'fa-star text-2xl',
+                  i <= viewEvaluationDialog.evaluation.score 
+                    ? 'fa-solid text-yellow-400' 
+                    : 'fa-regular text-gray-300'
+                ]"
+              ></i>
+            </div>
+            <div class="text-sm text-gray-600 mt-2 font-medium">
+              {{ getScoreLabel(viewEvaluationDialog.evaluation.score) }}
+            </div>
+          </div>
+
+          <!-- Comment Display -->
+          <div v-if="viewEvaluationDialog.evaluation.comment">
+            <label class="block text-sm font-medium text-gray-700 mb-2">评价内容</label>
+            <div class="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 whitespace-pre-wrap break-words">
+              {{ viewEvaluationDialog.evaluation.comment }}
+            </div>
+          </div>
+
+          <!-- Evaluation Time and User -->
+          <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-600">评价人</span>
+              <span class="font-medium text-gray-900">{{ viewEvaluationDialog.evaluation.userNickname || '用户' }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">评价时间</span>
+              <span class="font-medium text-gray-900">{{ formatDateTime(viewEvaluationDialog.evaluation.createTime) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-100">
+          <button
+            @click="closeViewEvaluationDialog"
+            class="w-full px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition font-medium"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
     <Footer />
   </div>
 </template>
@@ -558,7 +717,7 @@ import { useRouter } from 'vue-router'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import { useUserStore } from '@/stores/user'
-import { getUserOrders, payOrder } from '@/api/order'
+import { getUserOrders, payOrder, createEvaluation, getOrderEvaluation } from '@/api/order'
 import { getAppointmentList } from '@/api/appointment'
 import { getUserInfo, updateProfile } from '@/api/user'
 
@@ -592,6 +751,21 @@ const paymentDialog = reactive({
   visible: false,
   selectedOrder: null,
   confirming: false
+})
+
+const evaluationDialog = reactive({
+  visible: false,
+  selectedOrder: null,
+  score: 0,
+  comment: '',
+  submitting: false
+})
+
+const viewEvaluationDialog = reactive({
+  visible: false,
+  selectedOrder: null,
+  evaluation: null,
+  loading: false
 })
 
 const userName = computed(() => userStore.userInfo?.nickname || '王小明')
@@ -664,6 +838,24 @@ const loadOrders = async () => {
     orders.value = Array.isArray(records) ? records : []
     orderPagination.total = Number(payload?.total) || orders.value.length
     dataInitialized.value = true
+    
+    // 为每个已支付订单检查是否有评价
+    for (const order of orders.value) {
+      if (Number(order.status) === 1) {
+        const orderId = order.orderId || order.id
+        if (orderId) {
+          try {
+            const evalRes = await getOrderEvaluation(orderId)
+            const evalData = evalRes?.data || evalRes
+            order.hasEvaluation = evalData?.evaluated === true
+          } catch (err) {
+            // 如果查询失败，保持现有状态
+            console.warn(`查询订单 ${orderId} 的评价状态失败:`, err)
+            order.hasEvaluation = order.hasEvaluation || false
+          }
+        }
+      }
+    }
   } catch (error) {
     console.error('加载订单失败:', error)
   } finally {
@@ -857,6 +1049,141 @@ const confirmPayment = async () => {
     alert('支付失败，请稍后重试')
   } finally {
     paymentDialog.confirming = false
+  }
+}
+
+const openEvaluationDialog = (order) => {
+  evaluationDialog.selectedOrder = order
+  evaluationDialog.score = 0
+  evaluationDialog.comment = ''
+  evaluationDialog.submitting = false
+  evaluationDialog.visible = true
+}
+
+const closeEvaluationDialog = () => {
+  evaluationDialog.visible = false
+  evaluationDialog.selectedOrder = null
+  evaluationDialog.score = 0
+  evaluationDialog.comment = ''
+  evaluationDialog.submitting = false
+}
+
+const getScoreLabel = (score) => {
+  const labels = {
+    1: '不满意',
+    2: '一般',
+    3: '满意',
+    4: '很满意',
+    5: '非常满意'
+  }
+  return labels[score] || ''
+}
+
+const submitEvaluation = async () => {
+  if (evaluationDialog.submitting) return
+  if (!evaluationDialog.selectedOrder) return
+  if (evaluationDialog.score === 0) {
+    alert('请选择评分')
+    return
+  }
+
+  const orderId = evaluationDialog.selectedOrder.orderId || evaluationDialog.selectedOrder.id
+  if (!orderId) {
+    alert('未找到订单编号，无法评价')
+    return
+  }
+
+  evaluationDialog.submitting = true
+  try {
+    const res = await createEvaluation({
+      orderId: orderId,
+      score: evaluationDialog.score,
+      comment: evaluationDialog.comment.trim()
+    })
+
+    if (res?.success || res?.code === '00000') {
+      alert('评价提交成功，感谢您的评价！')
+      closeEvaluationDialog()
+      
+      // 方案A：直接调用评价接口验证
+      try {
+        const evalRes = await getOrderEvaluation(orderId)
+        const evalData = evalRes?.data || evalRes
+        
+        if (evalData && evalData.evaluated) {
+          // 找到对应的订单，标记为已评价
+          const order = orders.value.find(o => (o.orderId || o.id) === orderId)
+          if (order) {
+            order.hasEvaluation = true
+          }
+        }
+      } catch (evalError) {
+        console.error('验证评价状态失败:', evalError)
+        // 即使验证失败，也重新加载一次订单列表作为后备方案
+        await loadOrders()
+      }
+    } else {
+      alert(res?.message || '评价提交失败，请稍后重试')
+    }
+  } catch (error) {
+    console.error('评价提交失败:', error)
+    alert('评价提交失败，请稍后重试')
+  } finally {
+    evaluationDialog.submitting = false
+  }
+}
+
+const viewEvaluation = async (order) => {
+  const orderId = order.orderId || order.id
+  if (!orderId) {
+    alert('未找到订单编号')
+    return
+  }
+
+  viewEvaluationDialog.selectedOrder = order
+  viewEvaluationDialog.evaluation = null
+  viewEvaluationDialog.loading = true
+  viewEvaluationDialog.visible = true
+
+  try {
+    const res = await getOrderEvaluation(orderId)
+    const data = res?.data || res
+    
+    if (data && data.evaluated) {
+      viewEvaluationDialog.evaluation = data
+    } else {
+      alert('暂无评价信息')
+      closeViewEvaluationDialog()
+    }
+  } catch (error) {
+    console.error('加载评价失败:', error)
+    alert('加载评价失败，请稍后重试')
+    closeViewEvaluationDialog()
+  } finally {
+    viewEvaluationDialog.loading = false
+  }
+}
+
+const closeViewEvaluationDialog = () => {
+  viewEvaluationDialog.visible = false
+  viewEvaluationDialog.selectedOrder = null
+  viewEvaluationDialog.evaluation = null
+  viewEvaluationDialog.loading = false
+}
+
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '--'
+  try {
+    const date = new Date(dateTime)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return dateTime
   }
 }
 
