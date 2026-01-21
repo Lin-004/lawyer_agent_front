@@ -7,7 +7,7 @@
         <div class="flex justify-between h-16 items-center">
           <div class="flex items-center cursor-pointer" @click="$router.push('/')">
             <i class="fa-solid fa-scale-balanced text-brand-700 text-2xl mr-2"></i>
-            <span class="font-bold text-xl text-slate-900 tracking-tight">法信 LawChat</span>
+            <span class="font-bold text-xl text-slate-900 tracking-tight">法律咨询平台</span>
           </div>
           <div class="hidden md:flex space-x-8">
             <button 
@@ -498,10 +498,24 @@
                   class="bg-gray-50 rounded-lg p-4 border border-gray-200"
                 >
                   <div class="flex justify-between items-start">
-                    <div>
-                      <div class="font-bold text-gray-900">{{ appointment.lawyerName }}</div>
+                    <div class="flex-1">
+                      <div class="font-bold text-gray-900">
+                        {{ appointment.lawyerName || '律师' }}
+                        <span v-if="!appointment.lawyerName" class="text-xs font-normal text-gray-500">
+                          (ID: {{ appointment.lawyerId }})
+                        </span>
+                      </div>
                       <div class="text-sm text-gray-600 mt-1">
+                        <i class="fa-regular fa-calendar mr-1"></i>
                         {{ appointment.scheduleDate }} {{ appointment.startTime }} - {{ appointment.endTime }}
+                      </div>
+                      <div class="text-xs text-gray-500 mt-1">
+                        <i class="fa-regular fa-clock mr-1"></i>
+                        预约时间：{{ formatDateTime(appointment.appointmentTime) }}
+                      </div>
+                      <div class="text-xs text-gray-500 mt-1">
+                        <i class="fa-regular fa-calendar-plus mr-1"></i>
+                        创建时间：{{ formatDateTime(appointment.createTime) }}
                       </div>
                     </div>
                     <span :class="getStatusBadgeClass(appointment.status)">

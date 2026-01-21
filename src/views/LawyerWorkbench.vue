@@ -8,7 +8,7 @@
     >
       <div class="h-16 flex items-center px-6 border-b border-gray-100">
         <i class="fa-solid fa-scale-balanced text-brand-600 text-xl mr-2"></i>
-        <span class="font-bold text-lg text-slate-900">法信 · 律师端</span>
+        <span class="font-bold text-lg text-slate-900">法律咨询平台 · 律师端</span>
       </div>
 
       <nav class="flex-1 py-4 overflow-y-auto">
@@ -981,7 +981,7 @@
               <div class="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
                 <p class="text-xs text-gray-400 text-center md:text-left">
                   提交即代表您同意
-                  <a href="#" class="text-brand-600 hover:underline">《法信平台律师入驻协议》</a><br />
+                  <a href="#" class="text-brand-600 hover:underline">《法律咨询平台律师入驻协议》</a><br />
                   您的信息将严格保密，仅用于平台资质审核。
                 </p>
                 <div class="flex space-x-4 w-full md:w-auto">

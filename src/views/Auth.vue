@@ -26,7 +26,7 @@
         <div class="relative z-10">
           <div class="flex items-center space-x-2">
             <i class="fa-solid fa-scale-balanced text-3xl text-brand-500"></i>
-            <span class="text-2xl font-bold tracking-wide">法信 LawChat</span>
+            <span class="text-2xl font-bold tracking-wide">法律咨询平台</span>
           </div>
         </div>
 
@@ -42,7 +42,7 @@
         </div>
 
         <div class="relative z-10 text-sm text-blue-200">
-          &copy; 2023 法信平台 版权所有
+          &copy; 2025 法律咨询平台 版权所有
         </div>
       </div>
 
@@ -386,7 +386,7 @@ const heroContent = computed(() => {
   if (currentRole.value === 'lawyer') {
     return {
       title: '赋能法律人<br>高效执业',
-      description: '加入法信平台，获取精准案源，使用智能办案工具，打造您的专业个人品牌。'
+      description: '加入法律咨询平台，获取精准案源，使用智能办案工具，打造您的专业个人品牌。'
     }
   }
   return {

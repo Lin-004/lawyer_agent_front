@@ -7,7 +7,7 @@
         <div class="flex justify-between h-16 items-center">
           <div class="flex items-center cursor-pointer" @click="$router.push('/')">
             <i class="fa-solid fa-scale-balanced text-brand-700 text-2xl mr-2"></i>
-            <span class="font-bold text-xl text-slate-900 tracking-tight">法信 LawChat</span>
+            <span class="font-bold text-xl text-slate-900 tracking-tight">法律咨询平台</span>
           </div>
           <div class="hidden md:flex space-x-8">
             <button 
