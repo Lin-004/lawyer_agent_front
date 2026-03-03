@@ -1,5 +1,5 @@
 # 法律咨询助手 - 用户端前端项目
-
+(后端项目地址:https://gitee.com/nibuxnil/ai_agent)
 基于 Vue3 + Vite + Tailwind CSS 开发的法律咨询平台用户端。
 
 ## 技术栈
