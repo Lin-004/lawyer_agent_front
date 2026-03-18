@@ -270,7 +270,7 @@
     >
       <div class="h-16 flex items-center px-6 bg-slate-950 shadow-md">
         <i class="fa-solid fa-gavel text-blue-500 text-xl mr-3"></i>
-        <span class="font-bold text-lg tracking-wide">法信 Admin</span>
+        <span class="font-bold text-lg tracking-wide">法律咨询平台 Admin</span>
       </div>
 
       <nav class="flex-1 py-6 overflow-y-auto space-y-1">
