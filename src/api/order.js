@@ -35,3 +35,20 @@ export function payOrder(orderId) {
   })
 }
 
+// 创建评价
+export function createEvaluation(data) {
+  return request({
+    url: '/evaluation/create',
+    method: 'post',
+    data
+  })
+}
+
+// 获取订单评价
+export function getOrderEvaluation(orderId) {
+  return request({
+    url: `/evaluation/order/${orderId}`,
+    method: 'get'
+  })
+}
+
