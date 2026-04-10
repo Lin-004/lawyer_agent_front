@@ -9,7 +9,6 @@
       <div class="h-16 flex items-center px-6 border-b border-gray-100">
         <i class="fa-solid fa-scale-balanced text-brand-600 text-xl mr-2"></i>
         <span class="font-bold text-lg text-slate-900">法律咨询平台 · 律师端</span>
-        <span class="font-bold text-lg text-slate-900">法律咨询平台 · 律师端</span>
       </div>
 
       <nav class="flex-1 py-4 overflow-y-auto">
